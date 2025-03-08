@@ -1,0 +1,53 @@
+model_args:
+  spatial_dims: 2
+  in_channels: 1
+  out_channels: 1
+  num_res_blocks: [2, 2, 2, 2, 2]
+  num_channels: [32,64,128,256, 512]
+  attention_levels: [False, False, True,True, True]
+  norm_num_groups: 32
+  resblock_updown: True
+  num_head_channels: [32, 64, 128, 256, 512]
+  transformer_num_layers: 8
+
+  use_flash_attention: true
+
+  # If your UNet can do cross-attention (class embedding, etc.)
+  with_conditioning: false
+  cross_attention_dim: null
+
+  # If using ControlNet, you might specify extra channels for conditioning
+  conditioning_embedding_num_channels: [16]
+
+general_args:
+  # Toggle whether to build a ControlNet alongside the UNet
+  mask_conditioning: true # For Mask Conditioning
+  class_conditioning: false # For Class Conditioning
+
+data_args:
+  # Path to your pickled dataset (frames, masks, etc.)
+  pickle_path: "./data/camus/dataset.pkl"
+
+  # Which keys to load in your dataset dict for train/val splits
+  split_train: "train"
+  split_val: "valid"
+
+train_args:
+  # Basic training hyperparameters
+  num_epochs: 200
+  batch_size: 1
+  lr: 0.0001
+  # Logging & checkpointing frequency
+  print_every: 1
+  val_freq: 5
+  device: "cuda" 
+  num_val_samples: 10
+  checkpoint_dir: mask_conditioning_checkpoints
+
+solver_args: 
+  # ODE/flow matching hyperparameters
+  method: "euler"
+  step_size: 0.1
+  time_points: 10 # For Validation to see some samples Note that it should be less than the number of steps
+
+
