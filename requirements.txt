@@ -1,0 +1,6 @@
+flow_matching
+matplotlib
+monai_generative==0.2.3
+PyYAML==6.0.2
+torch==2.5.1
+tqdm==4.67.1
