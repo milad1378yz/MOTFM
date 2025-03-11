@@ -35,7 +35,7 @@ def main():
     parser.add_argument(
         "--num_samples",
         type=int,
-        default=2000,
+        default=10,
         help="Number of samples to save. If None, all samples are saved.",
     )
     parser.add_argument(
@@ -47,7 +47,7 @@ def main():
     parser.add_argument(
         "--num_inference_steps",
         type=int,
-        default=50,
+        default=5,
         help="Number of inference steps during sampling.",
     )
 
