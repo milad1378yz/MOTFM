@@ -1,51 +1,93 @@
 model_args:
+  # Defines whether we work in 2D, 3D, etc. For 2D medical images, use 2.
   spatial_dims: 2
+  
+  # Number of input channels (e.g., 1 for grayscale ultrasound or MRI slices).
   in_channels: 1
+  
+  # Number of output channels (e.g., 1 for generating a single-channel image).
   out_channels: 1
+  
+  # Number of residual blocks at each UNet level (one value per level).
   num_res_blocks: [2, 2, 2, 2, 2]
+  
+  # Number of channels at each UNet level (must match the length of num_res_blocks).
   num_channels: [32, 64, 128, 256, 512]
+  
+  # Defines which levels of the UNet incorporate attention layers.
   attention_levels: [False, False, True, True, True]
+  
+  # Number of groups for Group Normalization in residual blocks/attention.
   norm_num_groups: 32
+  
+  # Whether or not to include up/down sampling in each residual block.
   resblock_updown: True
+  
+  # Number of channels used in each attention head, typically matches num_channels.
   num_head_channels: [32, 64, 128, 256, 512]
+  
+  # Number of layers if a transformer block is employed (cross-attention).
   transformer_num_layers: 6
+  
+  # Toggles the use of more efficient “flash” attention implementations, if supported.
   use_flash_attention: true
-  # If your UNet can do cross-attention (class embedding, etc.)
+  
+  # Whether to enable cross-attention/conditioning in the UNet.
   with_conditioning: True
-  cross_attention_dim: 4  # Number of classes
-
-  # If using ControlNet, you might specify extra channels for conditioning
+  
+  # Dimensionality for cross-attention embeddings (e.g., number of classes).
+  cross_attention_dim: 4
+  
+  # If using additional conditioning embeddings (e.g., from masks), specify how many channels.
   conditioning_embedding_num_channels: [16]
 
 general_args:
-  # Toggle whether to build a ControlNet alongside the UNet
-  mask_conditioning: true # For Mask Conditioning
-  class_conditioning: true # For Class Conditioning
+  # Toggle whether to condition on segmentation masks.
+  mask_conditioning: true
+
+  # Toggle whether to condition on class labels.
+  class_conditioning: true
 
 data_args:
-  # Path to your pickled dataset (frames, masks, etc.)
+  # Path to your dataset in .pkl format (must match the data structure specified in the README).
   pickle_path: "./data/camus/dataset.pkl"
 
-  # Which keys to load in your dataset dict for train/val splits
+  # Dictionary keys in the loaded pickle file to use for training and validation splits.
   split_train: "train"
   split_val: "valid"
 
 train_args:
-  # Basic training hyperparameters
+  # Number of epochs for model training.
   num_epochs: 200
+  
+  # Batch size for training (change based on your GPU memory).
   batch_size: 1
+  
+  # Learning rate for the optimizer.
   lr: 0.0001
-  # Logging & checkpointing frequency
+  
+  # Print training status (loss, iteration, etc.) every `print_every` steps.
   print_every: 1
+  
+  # Run a validation pass every `val_freq` epochs.
   val_freq: 5
-  device: "cuda" 
+  
+  # Which device to run on: "cuda" for GPU, "cpu" for CPU.
+  device: "cuda"
+  
+  # Number of samples to visualize/validate during validation passes.
   num_val_samples: 10
+  
+  # Directory in which checkpoints and logs will be saved.
   checkpoint_dir: mask_class_conditioning_checkpoints
 
-solver_args: 
-  # ODE/flow matching hyperparameters
+solver_args:
+  # Which numerical solver/flow method to use (e.g., "euler", "rk4", etc.).
   method: "euler"
+  
+  # Solver step size for numeric integration.
   step_size: 0.1
-  time_points: 10 # For Validation to see some samples Note that it should be less than the number of steps
-
-
+  
+  # Number of time points for intermediate sampling or evaluation.
+  # NOTE: This must be ≤ the number of total solver steps.
+  time_points: 10
