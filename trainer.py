@@ -33,7 +33,7 @@ def main():
     parser.add_argument(
         "--config_path",
         type=str,
-        default="configs/default.yaml",
+        default="configs/unconditional.yaml",
         help="Path to the configuration file.",
     )
     args = parser.parse_args()
@@ -82,14 +82,14 @@ def main():
     train_loader = create_dataloader(
         Images=train_data["images"],
         Masks=train_data["masks"],
-        classes=train_data["classes"],
+        classes=train_data["classes"] if "classes" in train_data else None,
         batch_size=batch_size,
         shuffle=True,
     )
     val_loader = create_dataloader(
         Images=val_data["images"],
         Masks=val_data["masks"],
-        classes=val_data["classes"],
+        classes=val_data["classes"] if "classes" in val_data else None,
         batch_size=batch_size,
         shuffle=False,
     )

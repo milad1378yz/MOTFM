@@ -17,12 +17,12 @@ model_args:
 
 general_args:
   # Toggle whether to build a ControlNet alongside the UNet
-  mask_conditioning: false # For Mask Conditioning
+  mask_conditioning: true # For Mask Conditioning
   class_conditioning: false # For Class Conditioning
 
 data_args:
   # Path to your pickled dataset (frames, masks, etc.)
-  pickle_path: "./data/camus/dataset.pkl"
+  pickle_path: "./data/camus/dataset_new.pkl"
 
   # Which keys to load in your dataset dict for train/val splits
   split_train: "train"

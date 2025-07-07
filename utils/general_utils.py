@@ -90,6 +90,8 @@ def load_and_prepare_data(
         raise ValueError(f"No data found for split '{split}' in the pickle file.")
 
     image_list, mask_list, class_list = [], [], []
+    has_class = "class" in data_split[0]
+
     for entry in data_split:
         # Load and normalize the image
         image = torch.tensor(entry["image"], dtype=torch.float32)  # [1, H, W]
@@ -98,7 +100,8 @@ def load_and_prepare_data(
         mask = torch.tensor(entry["mask"], dtype=torch.float32)  # [1, H, W]
         mask_list.append(mask)
 
-        class_list.append(entry["class"])  # each is a string
+        if has_class:
+            class_list.append(entry["class"])  # each is a string
 
     # Concatenate images and masks
     Images = torch.cat(image_list, dim=0)  # [N, H, W]
@@ -120,32 +123,31 @@ def load_and_prepare_data(
         Masks = Masks + mask_new
     Masks = normalize_zero_to_one(Masks)
 
-    # Convert classes to one-hot if required
-    if convert_classes_to_onehot:
-        all_classes = sorted(list(set(class_list)))
-        class_to_idx = {c: i for i, c in enumerate(all_classes)}
-        idx_to_class = {i: c for i, c in enumerate(all_classes)}
+    result = {"images": Images, "masks": Masks}
 
-        for i, c in enumerate(class_list):
-            class_list[i] = class_to_idx[c]
+    if has_class:
+        # Convert classes to one-hot if required
+        if convert_classes_to_onehot:
+            all_classes = sorted(list(set(class_list)))
+            class_to_idx = {c: i for i, c in enumerate(all_classes)}
+            idx_to_class = {i: c for i, c in enumerate(all_classes)}
 
-        onehot_classes = torch.nn.functional.one_hot(
-            torch.tensor(class_list), num_classes=len(all_classes)
-        )  # [N, num_classes]
-        Classes = onehot_classes.float()
-        # if is_ddpm: # DDPM expects images in [-1, 1]
-        if is_ddpm:
-            Images = normalize_minusone_to_one(Images)
+            for i, c in enumerate(class_list):
+                class_list[i] = class_to_idx[c]
 
-        return {"images": Images, "masks": Masks, "classes": Classes, "class_map": idx_to_class}
-    else:
-        Classes = class_list
+            onehot_classes = torch.nn.functional.one_hot(
+                torch.tensor(class_list), num_classes=len(all_classes)
+            )  # [N, num_classes]
+            Classes = onehot_classes.float()
+            result["classes"] = Classes
+            result["class_map"] = idx_to_class
+        else:
+            result["classes"] = class_list
 
-    # if is_ddpm: # DDPM expects images in [-1, 1]
     if is_ddpm:
-        Images = normalize_minusone_to_one(Images)
+        result["images"] = normalize_minusone_to_one(result["images"])
 
-    return {"images": Images, "masks": Masks, "classes": Classes}
+    return result
 
 
 def create_dataloader(Images, Masks=None, classes=None, batch_size=8, shuffle=True):

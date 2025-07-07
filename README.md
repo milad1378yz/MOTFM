@@ -108,8 +108,7 @@ Below are explanations of the arguments:
 ## 💥 News 💥
 - **`09.04.2025`** | Code is released!
 - **`29.03.2025`** | The paper is now available on Arxiv! 🥳
-- **Pre-trained weights and data will be released upon acceptance.**
-
+- **`27.05.2025`** | The paper got accepted to MICCAI 2025! 🎉
 ---
 
 ## Citation
