@@ -6,7 +6,8 @@
 ![Repo Size](https://img.shields.io/github/repo-size/milad1378yz/MOTFM)
 ![MICCAI 2025](https://img.shields.io/badge/MICCAI-2025%20Accepted-4ea94b)
 
-Flow Matching for Medical Image Synthesis: Bridging the Gap Between Speed and Quality
+
+**MOTFM** (Medical Optimal Transport Flow Matching) accelerates medical image generation while preserving, and often improving, quality, across **2D/3D** and **class/mask-conditional** setups.
 
 ### [Paper](https://www.arxiv.org/abs/2503.00266)
 
