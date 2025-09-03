@@ -227,7 +227,7 @@
           <p>
             MOTFM trains a UNet-based velocity field with attention to follow an Optimal Transport (OT) path between a simple prior and the target image distribution.
             Compared to diffusion, the OT path is close to linear, so sampling needs far fewer steps.
-            The design supports: (1) <strong>unconditional</strong> generation, (2) <strong>class-conditional</strong> generation via cross-attention, and (3) <strong>mask-conditional</strong> generation using a second UNet with zero-conv and skip connections—also combinable with class conditioning.
+            The design supports: (1) <strong>unconditional</strong> generation, (2) <strong>class-conditional</strong> generation via cross-attention, and (3) <strong>mask-conditional</strong> generation using a second UNet with zero-conv and skip connections; also combinable with class conditioning.
           </p>
           <ul>
             <li>Architecture: UNet with attention; memory-efficient attention is used to speed training/inference.</li>
@@ -258,7 +258,7 @@
         </div>
         <div class="card">
           <h3 style="margin-top:6px">MSD (Brain MRI)</h3>
-          <p class="small">Medical Segmentation Decathlon, brain tumor task—multi-parametric MRI collection for benchmarking.</p>
+          <p class="small">Medical Segmentation Decathlon, brain tumor task, multi-parametric MRI collection for benchmarking.</p>
           <p class="small"><a href="https://medicaldecathlon.com/" target="_blank" rel="noopener">Dataset homepage</a></p>
         </div>
         <div class="card">
