@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MOTFM: Flow Matching for Medical Image Synthesis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="MOTFM: Medical Optimal Transport Flow Matching. Faster medical image synthesis with fewer steps while preserving or improving quality. Code, paper, quickstart, and citation." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23000'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Arial, Helvetica, sans-serif' font-weight='700' font-size='28' fill='%23fff'%3EMF%3C/text%3E%3C/svg%3E" />
+  <meta name="theme-color" content="#0f172a" />
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://milad1378yz.github.io/MOTFM/" />
+  <meta property="og:title" content="MOTFM: Flow Matching for Medical Image Synthesis" />
+  <meta property="og:description" content="Medical Optimal Transport Flow Matching (MOTFM): faster medical image synthesis with fewer steps and strong quality. Code, paper, quickstart, and citation." />
+  <meta property="og:image" content="https://raw.githubusercontent.com/milad1378yz/MOTFM/main/images/framework.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MOTFM: Flow Matching for Medical Image Synthesis" />
+  <meta name="twitter:description" content="Medical Optimal Transport Flow Matching (MOTFM): faster medical image synthesis with fewer steps and strong quality. Code, paper, quickstart, and citation." />
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/milad1378yz/MOTFM/main/images/framework.png" />
+
+  <!-- Schema.org (ScholarlyArticle) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    "name": "Flow Matching for Medical Image Synthesis: Bridging the Gap Between Speed and Quality",
+    "author": [
+      {"@type":"Person","name":"Milad Yazdani"},
+      {"@type":"Person","name":"Yasamin Medghalchi"},
+      {"@type":"Person","name":"Pooria Ashrafian"},
+      {"@type":"Person","name":"Ilker Hacihaliloglu"},
+      {"@type":"Person","name":"Dena Shahriari"}
+    ],
+    "datePublished": "2025-03-01",
+    "publisher": {"@type":"Organization","name":"arXiv"},
+    "identifier": "arXiv:2503.00266",
+    "url": "https://arxiv.org/abs/2503.00266",
+    "sameAs": [
+      "https://doi.org/10.48550/arXiv.2503.00266",
+      "https://github.com/milad1378yz/MOTFM"
+    ],
+    "description": "Medical Optimal Transport Flow Matching (MOTFM) accelerates medical image synthesis while preserving or improving quality across 2D/3D and conditional settings."
+  }
+  </script>
+
+  <style>
+    :root{
+      --bg: #0b1020;
+      --panel:#0f172a;
+      --text:#e5e7eb;
+      --muted:#9aa4b2;
+      --brand:#22d3ee;
+      --brand-2:#60a5fa;
+      --border:#22304a;
+      --link:#7dd3fc;
+      --card:#111827;
+      --code:#0b1220;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    [data-theme="light"]{
+      --bg:#f8fafc;
+      --panel:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --brand:#0891b2;
+      --brand-2:#2563eb;
+      --border:#e2e8f0;
+      --link:#0369a1;
+      --card:#ffffff;
+      --code:#0b1220;
+      --shadow: 0 12px 28px rgba(2,6,23,.08);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text); background:linear-gradient(180deg,var(--bg),#0b0f1a 30%, var(--bg));
+      line-height:1.6;
+    }
+    a{color:var(--link); text-decoration: none}
+    a:hover{text-decoration: underline}
+    .wrap{max-width:1100px; margin:0 auto; padding:0 20px}
+    header{
+      position:sticky; top:0; z-index:50;
+      backdrop-filter:saturate(180%) blur(10px);
+      background:color-mix(in hsl, var(--bg) 65%, transparent);
+      border-bottom:1px solid var(--border);
+    }
+    .nav{display:flex; align-items:center; justify-content:space-between; padding:12px 0}
+    .brand{
+      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.2px
+    }
+    .logo{
+      width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg, var(--brand), var(--brand-2));
+      display:grid; place-items:center; color:#001018; font-weight:900; box-shadow:var(--shadow)
+    }
+    .logo span{font-size:14px}
+    .nav a{margin:0 10px}
+    .nav .links{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:10px;
+      padding:10px 14px; background:var(--panel); color:var(--text); text-decoration:none; font-weight:600;
+      transition:transform .06s ease, border-color .2s ease, background .2s ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:linear-gradient(135deg, var(--brand), var(--brand-2)); color:#001018; border-color:transparent}
+    .btn-ghost{background:transparent}
+    .mute{color:var(--muted)}
+    .hero{
+      display:grid; grid-template-columns: 1.2fr 1fr; gap:28px; padding:48px 0 26px;
+    }
+    .hero h1{font-size: clamp(28px, 2.2vw + 16px, 46px); line-height:1.15; margin:12px 0 10px}
+    .tagline{font-size: clamp(14px, .7vw + 12px, 18px); color:var(--muted)}
+    .cta{display:flex; gap:10px; flex-wrap:wrap; margin:18px 0 8px}
+    .card{
+      background:linear-gradient(180deg,var(--panel), color-mix(in hsl, var(--panel) 80%, black));
+      border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow)
+    }
+    figure{margin:0}
+    figure img{width:100%; height:auto; border-radius:12px; border:1px solid var(--border); display:block}
+    figcaption{font-size:12.5px; color:var(--muted); margin-top:8px}
+    section{padding:26px 0}
+    h2{font-size: clamp(20px, 1.4vw + 14px, 28px); margin:6px 0 6px}
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+    .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
+    .kicker{text-transform:uppercase; letter-spacing:.18em; color:var(--brand-2); font-weight:800; font-size:12px}
+    .pill{display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:var(--muted)}
+    .code{background:#0b1220; border:1px solid #0b1c33; color:#dbeafe; padding:12px 14px; border-radius:10px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:13.2px}
+    .news li{margin-bottom:8px}
+    .foot{border-top:1px solid var(--border); margin-top:24px; padding:24px 0 48px; color:var(--muted)}
+    .callouts{display:flex; gap:10px; flex-wrap:wrap}
+    .callouts .pill{background:color-mix(in hsl, var(--panel) 80%, black)}
+    .small{font-size:13px}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
+    @media (max-width: 900px){ .hero{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="#top" aria-label="MOTFM home">
+        <div class="logo" aria-hidden="true"><span>MF</span></div>
+        <span>MOTFM</span>
+        <span class="mute mono" style="font-weight:600">/ 2025</span>
+      </a>
+      <nav class="links small">
+        <a href="#abstract">Abstract</a>
+        <a href="#method">Method</a>
+        <a href="#results">Results</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#resources">Resources</a>
+        <a href="#citation">Cite</a>
+        <button id="theme" class="btn btn-ghost small" type="button" title="Toggle theme">🌓</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top" class="wrap">
+    <section class="hero">
+      <div>
+        <div class="kicker">Paper</div>
+        <h1>Flow Matching for Medical Image Synthesis: Bridging the Gap Between Speed and Quality</h1>
+        <p class="tagline">
+          <strong>MOTFM</strong> (Medical Optimal Transport Flow Matching) accelerates medical image synthesis with far fewer sampling steps while maintaining, and often improving, image quality across 2D/3D and class/mask-conditional setups.
+        </p>
+
+        <p class="small mute" style="margin:.6rem 0 0">
+          <strong>Authors:</strong> Milad Yazdani, Yasamin Medghalchi, Pooria Ashrafian, Ilker Hacihaliloglu, Dena Shahriari &nbsp; · &nbsp;
+          <strong>Affiliation:</strong> University of British Columbia, Vancouver, Canada
+        </p>
+
+        <div class="cta">
+          <a class="btn btn-primary" href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">📄 Paper (arXiv)</a>
+          <a class="btn" href="https://arxiv.org/pdf/2503.00266.pdf" target="_blank" rel="noopener">⬇️ PDF</a>
+          <a class="btn" href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">🔗 DOI</a>
+          <a class="btn" href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">💻 Code (GitHub)</a>
+        </div>
+
+        <div class="callouts">
+          <span class="pill">Optimal Transport Flow Matching</span>
+          <span class="pill">1-10 step sampling</span>
+          <span class="pill">2D &amp; 3D</span>
+          <span class="pill">Class &amp; Mask conditioning</span>
+          <span class="pill">MIT License</span>
+        </div>
+      </div>
+
+      <figure class="card">
+        <img
+          src="https://raw.githubusercontent.com/milad1378yz/MOTFM/main/images/framework.png"
+          alt="MOTFM overview: straighter transport path vs diffusion and conditioning architecture"
+          loading="eager" />
+        <figcaption>
+          MOTFM uses Optimal Transport Flow Matching to learn near-straight paths from noise to target, enabling fast sampling with strong fidelity.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section id="abstract" class="grid-2">
+      <div>
+        <h2>Abstract (short)</h2>
+        <p>
+          Medical AI often lacks large, high-quality datasets due to privacy and annotation costs.
+          Generative models can help, but diffusion models are slow at inference.
+          <strong>MOTFM</strong> introduces an Optimal Transport Flow Matching approach that maps source noise to the data distribution along a much straighter path, reducing the number of sampling steps while preserving, and in many cases improving, image quality.
+          The framework supports multiple modalities (e.g., echocardiography and MRI), conditioning mechanisms (class labels and masks), and both 2D and 3D settings.
+        </p>
+        <p class="small mute">See <a href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">arXiv:2503.00266</a> for the full abstract.</p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:4px">Project news</h2>
+        <ul class="news">
+          <li><strong>May&nbsp;27,&nbsp;2025</strong> Accepted to <em>MICCAI&nbsp;2025</em>.</li>
+          <li><strong>Apr&nbsp;09,&nbsp;2025</strong> Code released.</li>
+          <li><strong>Mar&nbsp;29,&nbsp;2025</strong> Paper available on arXiv.</li>
+        </ul>
+        <p class="small mute">Source: project README.</p>
+      </div>
+    </section>
+
+    <section id="method">
+      <h2>Method at a glance</h2>
+      <div class="grid-2">
+        <div class="card">
+          <p>
+            MOTFM trains a UNet-based velocity field with attention to follow an Optimal Transport (OT) path between a simple prior and the target image distribution.
+            Compared to diffusion, the OT path is close to linear, so sampling needs far fewer steps.
+            The design supports: (1) <strong>unconditional</strong> generation, (2) <strong>class-conditional</strong> generation via cross-attention, and (3) <strong>mask-conditional</strong> generation using a second UNet with zero-conv and skip connections—also combinable with class conditioning.
+          </p>
+          <ul>
+            <li>Architecture: UNet with attention; memory-efficient attention is used to speed training/inference.</li>
+            <li>Dimensions: native 2D and 3D variants.</li>
+            <li>Conditioning: class labels, masks, or both.</li>
+          </ul>
+          <p class="small mute">Details: see Sections 2-3 of the paper.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Key results (qualitative &amp; quantitative)</h3>
+          <ul>
+            <li>On echocardiography (CAMUS), MOTFM achieves better distributional and structural metrics than baselines.</li>
+            <li><strong>1-step MOTFM</strong> outperforms <strong>10-step DDPM</strong>; <strong>10-step MOTFM</strong> surpasses <strong>50-step DDPM</strong>.</li>
+            <li>On 3D MRI (MSD Brain), MOTFM yields stronger 3D-FID/MMD with far fewer steps.</li>
+          </ul>
+          <p class="small mute">See paper results & tables for exact numbers.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="results">
+      <h2>Datasets used</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3 style="margin-top:6px">CAMUS (Echo)</h3>
+          <p class="small">2D echocardiography dataset with four- and two-chamber views, widely used for segmentation and generative evaluation.</p>
+          <p class="small"><a href="https://www.creatis.insa-lyon.fr/Challenge/camus/" target="_blank" rel="noopener">Dataset homepage</a></p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:6px">MSD (Brain MRI)</h3>
+          <p class="small">Medical Segmentation Decathlon, brain tumor task—multi-parametric MRI collection for benchmarking.</p>
+          <p class="small"><a href="https://medicaldecathlon.com/" target="_blank" rel="noopener">Dataset homepage</a></p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:6px">Reproducibility</h3>
+          <p class="small">Evaluation follows common distributional and structural metrics; consult the paper for protocols, splits, and exact implementations.</p>
+          <p class="small mute">Metrics include FID/3D-FID, KID, CMMD/MMD, IS, (MS-)SSIM.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="quickstart">
+      <h2>Quickstart</h2>
+      <div class="grid-2">
+        <div>
+          <p>Install dependencies:</p>
+<pre class="code">pip install -r requirements.txt</pre>
+
+          <p>Train (edit your YAML config or use the default):</p>
+<pre class="code">python trainer.py --config_path configs/default.yaml</pre>
+
+          <p>Inference (example):</p>
+<pre class="code">python inferer.py \
+  --config_path configs/default.yaml \
+  --num_samples 2000 \
+  --model_path mask_class_conditioning_checkpoints/latest \
+  --num_inference_steps 5</pre>
+          <p class="small mute">After inference, generated samples are saved as a <code>.pkl</code> in the checkpoint folder noted by <code>--model_path</code>.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Data format &amp; configs</h3>
+          <p class="small">
+            For training, store your dataset in a single <code>.pkl</code> with splits and fields such as
+            <code>image</code>, <code>mask</code>, <code>class</code>, and optional <code>metadata</code>.
+            Adjust paths and hyper-parameters in <code>configs/*.yaml</code>.
+          </p>
+          <p class="small"><a href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">See README for full details</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="resources">
+      <h2>Resources</h2>
+      <div class="grid-3">
+        <div class="card">
+          <h3 style="margin-top:6px">Code &amp; checkpoints</h3>
+          <p class="small">MIT-licensed implementation with training, inference, and sample configs.</p>
+          <p class="small"><a href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">GitHub: milad1378yz/MOTFM</a></p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:6px">Paper</h3>
+          <p class="small">arXiv preprint with method and experiments across echo and MRI.</p>
+          <p class="small"><a href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">arXiv:2503.00266</a> · <a href="https://arxiv.org/pdf/2503.00266.pdf" target="_blank" rel="noopener">PDF</a> · <a href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">DOI</a></p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:6px">License</h3>
+          <p class="small">The repository is available under the MIT license.</p>
+          <p class="small"><a href="https://github.com/milad1378yz/MOTFM/blob/main/LICENSE" target="_blank" rel="noopener">View license</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="citation">
+      <h2>Citation</h2>
+      <div class="grid-2">
+        <div>
+<pre id="bibtex" class="code">@article{yazdani2025flow,
+  title   = {Flow Matching for Medical Image Synthesis: Bridging the Gap Between Speed and Quality},
+  author  = {Yazdani, Milad and Medghalchi, Yasamin and Ashrafian, Pooria and Hacihaliloglu, Ilker and Shahriari, Dena},
+  journal = {arXiv preprint arXiv:2503.00266},
+  year    = {2025}
+}</pre>
+          <p>
+            <button class="btn" type="button" onclick="copyBib()">📋 Copy BibTeX</button>
+            <a class="btn" href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">arXiv</a>
+            <a class="btn" href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">DOI</a>
+          </p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Contact</h3>
+          <p class="small">For questions about the paper or code, email <a href="mailto:milad.yazdani@ece.ubc.ca">milad.yazdani@ece.ubc.ca</a>.</p>
+          <p class="small mute">Affiliation: University of British Columbia, Vancouver, Canada.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="foot small">
+      <p>
+        © 2025 The authors. Code: <a href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">MOTFM</a> (MIT).
+        Datasets referenced: <a href="https://www.creatis.insa-lyon.fr/Challenge/camus/" target="_blank" rel="noopener">CAMUS</a>, <a href="https://medicaldecathlon.com/" target="_blank" rel="noopener">Medical Segmentation Decathlon</a>.
+      </p>
+      <p class="mute">
+        If you use this work in academic projects, please cite the paper. Images belong to their respective copyright holders and are used here for scholarly communication.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    // Theme toggle with localStorage
+    (function(){
+      const key = "motfm-theme";
+      const pref = localStorage.getItem(key);
+      if (pref === "light") document.documentElement.setAttribute("data-theme", "light");
+      const btn = document.getElementById("theme");
+      btn?.addEventListener("click", ()=>{
+        const isLight = document.documentElement.getAttribute("data-theme")==="light";
+        document.documentElement.setAttribute("data-theme", isLight ? "" : "light");
+        localStorage.setItem(key, isLight ? "dark" : "light");
+      });
+    })();
+
+    // Copy BibTeX
+    function copyBib(){
+      const txt = document.getElementById('bibtex').innerText;
+      navigator.clipboard.writeText(txt).then(()=>{
+        const old = document.activeElement?.textContent;
+        if(document.activeElement) {
+          document.activeElement.textContent = "✅ Copied!";
+          setTimeout(()=>document.activeElement.textContent = old, 1400);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
