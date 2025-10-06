@@ -176,3 +176,26 @@ def save_image(img_tensor, out_path):
     plt.axis("off")
     plt.savefig(out_path, bbox_inches="tight", pad_inches=0)
     plt.close()
+
+
+def save_image_3d(img_tensor, out_path, slice_idx=None):
+    """
+    Saves a single 3D image (assumed shape [1, D, H, W] or [D, H, W]) as a series of PNGs.
+    If slice_idx is provided, saves only that slice.
+    """
+    os.makedirs(out_path, exist_ok=True)
+    # remove batch/channel dims if present
+    if img_tensor.dim() == 4 and img_tensor.shape[0] == 1:
+        img_tensor = img_tensor.squeeze(0)
+    if img_tensor.dim() != 3:
+        raise ValueError("img_tensor must be 3D (D, H, W)")
+
+    D = img_tensor.shape[0]
+    slice_indices = [slice_idx] if slice_idx is not None else [D // 2]
+
+    for i in slice_indices:
+        plt.figure()
+        plt.imshow(img_tensor[i].cpu().numpy(), cmap="gray")
+        plt.axis("off")
+        plt.savefig(os.path.join(out_path, f"slice_{i:03d}.png"), bbox_inches="tight", pad_inches=0)
+        plt.close()

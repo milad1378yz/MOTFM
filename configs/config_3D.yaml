@@ -1,0 +1,89 @@
+model_args:
+  # Defines whether we work in 2D, 3D, etc. For 2D medical images, use 2.
+  spatial_dims: 3
+  
+  # Number of input channels (e.g., 1 for grayscale ultrasound or MRI slices).
+  in_channels: 1
+  
+  # Number of output channels (e.g., 1 for generating a single-channel image).
+  out_channels: 1
+  
+  # Number of residual blocks at each UNet level (one value per level).
+  num_res_blocks: [2, 2, 2, 2]
+  
+  # Number of channels at each UNet level (must match the length of num_res_blocks).
+  num_channels: [32, 64, 128, 256]
+  
+  # Defines which levels of the UNet incorporate attention layers.
+  attention_levels: [False, False, False, True]
+  
+  # Number of groups for Group Normalization in residual blocks/attention.
+  norm_num_groups: 32
+  
+  # Whether or not to include up/down sampling in each residual block.
+  resblock_updown: True
+  
+  # Number of channels used in each attention head, typically matches num_channels.
+  num_head_channels: [32, 64, 128, 256]
+  
+  # Number of layers if a transformer block is employed (cross-attention).
+  transformer_num_layers: 6
+  
+  # Toggles the use of more efficient “flash” attention implementations, if supported.
+  use_flash_attention: true
+  
+  # Whether to enable cross-attention/conditioning in the UNet.
+  with_conditioning: True
+
+  mask_conditioning: True
+  
+  # Dimensionality for cross-attention embeddings (e.g., number of classes).
+  cross_attention_dim: 4
+  
+  # If using additional conditioning embeddings (e.g., from masks), specify how many channels.
+  conditioning_embedding_num_channels: [16]
+
+
+data_args:
+  # Path to your dataset in .pkl format (must match the data structure specified in the README).
+  pickle_path: "./data/dummy_3d/dataset.pkl"
+
+  # Dictionary keys in the loaded pickle file to use for training and validation splits.
+  split_train: "train"
+  split_val: "valid"
+
+train_args:
+  # Number of epochs for model training.
+  num_epochs: 200
+  
+  # Batch size for training (change based on your GPU memory).
+  batch_size: 1
+  
+  # Learning rate for the optimizer.
+  lr: 0.0001
+  
+  # Print training status (loss, iteration, etc.) every `print_every` steps.
+  print_every: 1
+  
+  # Run a validation pass every `val_freq` epochs.
+  val_freq: 1
+  
+  # Which device to run on: "cuda" for GPU, "cpu" for CPU.
+  device: "cuda"
+  
+  # Number of samples to visualize/validate during validation passes.
+  num_val_samples: 10
+  
+  # Directory in which checkpoints and logs will be saved.
+  checkpoint_dir: mask_class_conditioning_checkpoints_3d
+
+solver_args:
+  # Which numerical solver/flow method to use (e.g., "euler", "rk4", etc.).
+  method: "euler"
+  
+  # Solver step size for numeric integration.
+  step_size: 0.1
+  
+  # Number of time points for intermediate sampling or evaluation.
+  # NOTE: This must be ≤ the number of total solver steps.
+  time_points: 10

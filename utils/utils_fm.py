@@ -6,7 +6,7 @@ from torch import nn
 from generative.networks.nets import DiffusionModelUNet, ControlNet
 from flow_matching.solver import ODESolver
 
-from .general_utils import normalize_zero_to_one, save_image
+from .general_utils import normalize_zero_to_one, save_image, save_image_3d
 from tqdm import tqdm
 
 
@@ -228,6 +228,7 @@ def validate_and_save_samples(
     count, step_plot_done = 0, False
     for batch in tqdm(val_loader, desc="Validating"):
         imgs = batch["images"].to(device)
+        is_3d = imgs.dim() == 5
         cond = batch["classes"].to(device).unsqueeze(1) if class_conditioning else None
         masks = batch["masks"].to(device) if mask_conditioning else None
 
@@ -239,7 +240,8 @@ def validate_and_save_samples(
             cond=cond,
             masks=masks,
         )
-        final_imgs = sol[-1] if sol.dim() == 5 else sol
+        final_imgs = sol[-1] if sol.dim() == imgs.dim() + 1 else sol
+
         for i in range(final_imgs.size(0)):
             if count >= max_samples:
                 break
@@ -247,11 +249,18 @@ def validate_and_save_samples(
             real_img = normalize_zero_to_one(imgs[i])
             sdir = os.path.join(outdir, f"sample_{count+1:03d}")
             os.makedirs(sdir, exist_ok=True)
-            save_image(gen_img, os.path.join(sdir, "gen.png"))
-            save_image(real_img, os.path.join(sdir, "real.png"))
+            if is_3d:
+                save_image_3d(gen_img, os.path.join(sdir, "gen"))
+                save_image_3d(real_img, os.path.join(sdir, "real"))
+            else:
+                save_image(gen_img, os.path.join(sdir, "gen.png"))
+                save_image(real_img, os.path.join(sdir, "real.png"))
             if masks is not None:
                 cnd_img = normalize_zero_to_one(masks[i])
-                save_image(cnd_img, os.path.join(sdir, "mask.png"))
+                if is_3d:
+                    save_image_3d(cnd_img, os.path.join(sdir, "mask"))
+                else:
+                    save_image(cnd_img, os.path.join(sdir, "mask.png"))
             if class_map and "classes" in batch:
                 idx = batch["classes"][i].argmax().item()
                 with open(os.path.join(sdir, "class.json"), "w") as f:
