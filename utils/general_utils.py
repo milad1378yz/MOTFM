@@ -2,6 +2,7 @@ import os
 import yaml
 import torch
 import pickle
+from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
 
@@ -18,16 +19,6 @@ def load_config(config_path: str = "config.yaml"):
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config
-
-
-def save_config(config, output_path: str):
-    """
-    Saves a config (Python dict) to a YAML file.
-    """
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "w") as f:
-        yaml.dump(config, f)
-    print(f"Config saved to: {output_path}")
 
 
 ###############################################################################
@@ -65,7 +56,7 @@ def load_and_prepare_data(
     threshold_mask: float = 0.15,
     convert_classes_to_onehot: bool = False,
     is_ddpm: bool = False,
-):
+) -> Dict[str, torch.Tensor]:
     """
     Loads data from a pickle file containing a dict with:
       data_dict[split] -> list of dicts with keys ["image", "mask", "class", "name"]
@@ -89,57 +80,34 @@ def load_and_prepare_data(
     if not data_split:
         raise ValueError(f"No data found for split '{split}' in the pickle file.")
 
-    image_list, mask_list, class_list = [], [], []
-    has_class = "class" in data_split[0]
+    # Vectorized assembly of tensors
+    imgs = [torch.as_tensor(e["image"], dtype=torch.float32).squeeze(0) for e in data_split]
+    mks = [torch.as_tensor(e["mask"], dtype=torch.float32).squeeze(0) for e in data_split]
 
-    for entry in data_split:
-        # Load and normalize the image
-        image = torch.tensor(entry["image"], dtype=torch.float32)  # [1, H, W]
-        image_list.append(image)
-
-        mask = torch.tensor(entry["mask"], dtype=torch.float32)  # [1, H, W]
-        mask_list.append(mask)
-
-        if has_class:
-            class_list.append(entry["class"])  # each is a string
-
-    # Concatenate images and masks
-    Images = torch.cat(image_list, dim=0)  # [N, H, W]
-    assert Images.dim() == 3, f"Expected 3D tensor, got {Images.shape}"
-    Images = Images.unsqueeze(1)  # [N, 1, H, W]
+    Images = torch.stack(imgs, dim=0).unsqueeze(1)  # [N, 1, H, W]
     Images = normalize_zero_to_one(Images)
 
-    Masks = torch.cat(mask_list, dim=0)  # [N, H, W]
-    assert Masks.dim() == 3, f"Expected 3D tensor, got {Masks.shape}"
-    Masks = Masks.unsqueeze(1)  # [N, 1, H, W]
+    Masks = torch.stack(mks, dim=0).unsqueeze(1)  # [N, 1, H, W]
 
     if new_masking:
-        # Apply new masking logic if required
-        mask_new = torch.rand_like(Masks)
-        for i in range(Images.shape[0]):
-            mask_new[i] = (Images[i] > threshold_mask).float()
-        # Combine mask_new with Y
+        # Vectorized new masking logic
+        mask_new = (Images > threshold_mask).float()
         Masks = Masks * mask_new
         Masks = Masks + mask_new
     Masks = normalize_zero_to_one(Masks)
 
     result = {"images": Images, "masks": Masks}
 
+    has_class = "class" in data_split[0]
     if has_class:
-        # Convert classes to one-hot if required
+        class_list = [e["class"] for e in data_split]
         if convert_classes_to_onehot:
-            all_classes = sorted(list(set(class_list)))
+            all_classes = sorted(set(class_list))
             class_to_idx = {c: i for i, c in enumerate(all_classes)}
             idx_to_class = {i: c for i, c in enumerate(all_classes)}
-
-            for i, c in enumerate(class_list):
-                class_list[i] = class_to_idx[c]
-
-            onehot_classes = torch.nn.functional.one_hot(
-                torch.tensor(class_list), num_classes=len(all_classes)
-            )  # [N, num_classes]
-            Classes = onehot_classes.float()
-            result["classes"] = Classes
+            idxs = torch.tensor([class_to_idx[c] for c in class_list], dtype=torch.long)
+            onehot = torch.nn.functional.one_hot(idxs, num_classes=len(all_classes)).float()
+            result["classes"] = onehot
             result["class_map"] = idx_to_class
         else:
             result["classes"] = class_list
@@ -150,9 +118,24 @@ def load_and_prepare_data(
     return result
 
 
-def create_dataloader(Images, Masks=None, classes=None, batch_size=8, shuffle=True):
+def create_dataloader(
+    Images: torch.Tensor,
+    Masks: Optional[torch.Tensor] = None,
+    classes: Optional[torch.Tensor] = None,
+    batch_size: int = 8,
+    shuffle: bool = True,
+    num_workers: int = 0,
+    pin_memory: Optional[bool] = None,
+    persistent_workers: Optional[bool] = None,
+    drop_last: bool = False,
+):
     """
-    Creates a DataLoader from Images, and optionally Masks and classes if given.
+    Creates a performant DataLoader from tensors, optionally including masks/classes.
+
+    Additional knobs:
+      - num_workers: dataloader workers
+      - pin_memory: defaults to True on CUDA machines
+      - persistent_workers: defaults to True if num_workers > 0 and not shuffle-only epoch
     """
     data_dict = {"images": Images}
     if Masks is not None:
@@ -161,74 +144,20 @@ def create_dataloader(Images, Masks=None, classes=None, batch_size=8, shuffle=Tr
         data_dict["classes"] = classes
 
     dataset = CustomDataset(data_dict)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+    if pin_memory is None:
+        pin_memory = torch.cuda.is_available()
+    if persistent_workers is None:
+        persistent_workers = num_workers > 0
 
-
-###############################################################################
-# Checkpointing
-###############################################################################
-def save_checkpoint(
-    model,
-    optimizer,
-    epoch,
-    config,
-    checkpoint_dir: str,
-    scheduler=None,
-):
-    """
-    Saves model/optimizer states + config to "checkpoint.pth" inside 'checkpoint_dir'.
-    """
-    os.makedirs(checkpoint_dir, exist_ok=True)
-    checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
-
-    state = {
-        "epoch": epoch,
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict() if optimizer is not None else None,
-        "config": config,
-    }
-    if scheduler is not None:
-        state["scheduler_state_dict"] = scheduler.state_dict()
-
-    torch.save(state, checkpoint_path)
-    print(f"Checkpoint saved -> {checkpoint_path}")
-
-
-def load_checkpoint(
-    model,
-    optimizer,
-    checkpoint_dir,
-    device,
-    valid_only=False,
-    scheduler=None,
-):
-    """
-    Loads model/optimizer states + config from 'checkpoint.pth' in 'checkpoint_dir', if present.
-    Returns (epoch, config).
-
-    If 'valid_only' is True, optimizer state is not loaded (for pure inference).
-    """
-    checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
-    if not os.path.isfile(checkpoint_path):
-        print(f"No checkpoint found at {checkpoint_path}. Starting from scratch.")
-        return 0, None
-
-    print(f"Loading checkpoint from '{checkpoint_path}'...")
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-
-    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-
-    if not valid_only and optimizer is not None and checkpoint["optimizer_state_dict"] is not None:
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-
-    if scheduler is not None and "scheduler_state_dict" in checkpoint and not valid_only:
-        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-
-    epoch = checkpoint["epoch"]
-    config_loaded = checkpoint.get("config", None)
-
-    print(f"Loaded checkpoint from epoch {epoch}")
-    return epoch, config_loaded
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
+        drop_last=drop_last,
+    )
 
 
 ###############################################################################

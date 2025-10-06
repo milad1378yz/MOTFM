@@ -54,6 +54,9 @@ class MergedModel(nn.Module):
         if t.dim() == 0:
             t = t.expand(x.shape[0])
 
+        if cond.dim() == 2:
+            cond = cond.unsqueeze(1)
+
         # t's shape should be [B]
 
         if self.has_controlnet:
@@ -103,6 +106,7 @@ def build_model(model_config: dict, device: torch.device = None) -> MergedModel:
 
     controlnet = None
     if mask_conditioning:
+        mc.pop("out_channels", None)
         # Ensure the controlnet has its specific key.
         if cond_embed_channels is None:
             cond_embed_channels = (16,)

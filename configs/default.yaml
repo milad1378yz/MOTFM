@@ -15,7 +15,7 @@ model_args:
   num_channels: [32, 64, 128, 256, 512]
   
   # Defines which levels of the UNet incorporate attention layers.
-  attention_levels: [False, False, True, True, True]
+  attention_levels: [False, False, False, True, True]
   
   # Number of groups for Group Normalization in residual blocks/attention.
   norm_num_groups: 32
@@ -34,6 +34,8 @@ model_args:
   
   # Whether to enable cross-attention/conditioning in the UNet.
   with_conditioning: True
+
+  mask_conditioning: True
   
   # Dimensionality for cross-attention embeddings (e.g., number of classes).
   cross_attention_dim: 4
@@ -41,12 +43,6 @@ model_args:
   # If using additional conditioning embeddings (e.g., from masks), specify how many channels.
   conditioning_embedding_num_channels: [16]
 
-general_args:
-  # Toggle whether to condition on segmentation masks.
-  mask_conditioning: true
-
-  # Toggle whether to condition on class labels.
-  class_conditioning: true
 
 data_args:
   # Path to your dataset in .pkl format (must match the data structure specified in the README).
@@ -70,7 +66,7 @@ train_args:
   print_every: 1
   
   # Run a validation pass every `val_freq` epochs.
-  val_freq: 5
+  val_freq: 1
   
   # Which device to run on: "cuda" for GPU, "cpu" for CPU.
   device: "cuda"

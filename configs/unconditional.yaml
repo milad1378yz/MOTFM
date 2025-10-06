@@ -13,12 +13,9 @@ model_args:
   use_flash_attention: True
   dropout_cattn: 0.2
 
+  with_conditioning: False
+  mask_conditioning: False
 
-
-general_args:
-  # Toggle whether to build a ControlNet alongside the UNet
-  mask_conditioning: true # For Mask Conditioning
-  class_conditioning: false # For Class Conditioning
 
 data_args:
   # Path to your pickled dataset (frames, masks, etc.)

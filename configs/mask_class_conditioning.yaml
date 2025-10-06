@@ -12,15 +12,13 @@ model_args:
   use_flash_attention: true
   # If your UNet can do cross-attention (class embedding, etc.)
   with_conditioning: True
+  mask_conditioning: True
   cross_attention_dim: 4  # Number of classes
+  
+
 
   # If using ControlNet, you might specify extra channels for conditioning
   conditioning_embedding_num_channels: [16]
-
-general_args:
-  # Toggle whether to build a ControlNet alongside the UNet
-  mask_conditioning: true # For Mask Conditioning
-  class_conditioning: true # For Class Conditioning
 
 data_args:
   # Path to your pickled dataset (frames, masks, etc.)

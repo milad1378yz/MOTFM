@@ -14,13 +14,9 @@ model_args:
   dropout_cattn: 0.2
 
   with_conditioning: True
+  mask_conditioning: False
   cross_attention_dim: 4 # Number of classes
 
-
-general_args:
-  # Toggle whether to build a ControlNet alongside the UNet
-  mask_conditioning: false # For Mask Conditioning
-  class_conditioning: true # For Class Conditioning
 
 data_args:
   # Path to your pickled dataset (frames, masks, etc.)
