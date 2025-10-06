@@ -124,11 +124,13 @@ Below are explanations of the arguments:
 If you find this code or our work useful in your research, please cite:
 
 ```BibTeX
-@article{yazdani2025flow,
-  title={Flow Matching for Medical Image Synthesis: Bridging the Gap Between Speed and Quality},
+@inproceedings{yazdani2025flow,
+  title={Flow matching for medical image synthesis: Bridging the gap between speed and quality},
   author={Yazdani, Milad and Medghalchi, Yasamin and Ashrafian, Pooria and Hacihaliloglu, Ilker and Shahriari, Dena},
-  journal={arXiv preprint arXiv:2503.00266},
-  year={2025}
+  booktitle={International Conference on Medical Image Computing and Computer-Assisted Intervention},
+  pages={216--226},
+  year={2025},
+  organization={Springer}
 }
 ```
 
