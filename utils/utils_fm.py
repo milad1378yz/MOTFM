@@ -303,5 +303,5 @@ def sample_batch(
     sol = sample_with_solver(
         model=model, solver_config=solver_config, x_init=x_init, cond=cond, masks=masks
     )
-    final_imgs = sol[-1] if sol.dim() == 5 else sol
+    final_imgs = sol[-1] if sol.dim() == imgs.dim() + 1 else sol
     return final_imgs
