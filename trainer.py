@@ -151,6 +151,32 @@ class FlowMatchingLightningModule(pl.LightningModule):
         )
 
 
+def _resolve_resume_checkpoint(
+    explicit_ckpt_path: Optional[str], root_ckpt_dir: str, run_name: str
+) -> Optional[str]:
+    """Return the checkpoint path to resume from, if any."""
+    if explicit_ckpt_path:
+        return explicit_ckpt_path
+
+    ckpt_dir = os.path.join(root_ckpt_dir, run_name)
+    if not os.path.isdir(ckpt_dir):
+        return None
+
+    last_ckpt = os.path.join(ckpt_dir, "last.ckpt")
+    if os.path.isfile(last_ckpt):
+        return last_ckpt
+
+    _candidates = [
+        os.path.join(ckpt_dir, fname)
+        for fname in os.listdir(ckpt_dir)
+        if fname.endswith(".ckpt") and os.path.isfile(os.path.join(ckpt_dir, fname))
+    ]
+    if not _candidates:
+        return None
+
+    return max(_candidates, key=os.path.getmtime)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the flow matching model with Lightning.")
     parser.add_argument(
@@ -196,11 +222,17 @@ def main() -> None:
     )
     precision = tr.get("precision", default_precision)
 
+    resume_ckpt = _resolve_resume_checkpoint(tr.get("ckpt_path"), root_ckpt_dir, run_name)
+    if resume_ckpt:
+        print(f"Resuming training from checkpoint: {resume_ckpt}")
+    else:
+        print("No checkpoint found. Starting training from scratch.")
+
     trainer = pl.Trainer(
         default_root_dir=root_ckpt_dir,
         max_epochs=tr["num_epochs"],
         precision=precision,
-        accumulate_grad_batches=tr.get("gradient_accumulation_steps", 1),
+        accumulate_grad_batches=tr.get("gradient_accumulation_steps", 8),
         gradient_clip_val=tr.get("grad_clip_norm", 0.0) or None,
         check_val_every_n_epoch=ckpt_every,
         enable_progress_bar=True,
@@ -216,7 +248,7 @@ def main() -> None:
         num_sanity_val_steps=tr.get("num_sanity_val_steps", 0),
     )
 
-    trainer.fit(model, datamodule=datamodule)
+    trainer.fit(model, datamodule=datamodule, ckpt_path=resume_ckpt)
 
 
 if __name__ == "__main__":
