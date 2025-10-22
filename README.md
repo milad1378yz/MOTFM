@@ -10,6 +10,7 @@
 **MOTFM** (Medical Optimal Transport Flow Matching) accelerates medical image generation while preserving, and often improving, quality, across **2D/3D** and **class/mask-conditional** setups.
 
 ### [Paper](https://www.arxiv.org/abs/2503.00266)
+### [Model Checkpoint](https://drive.google.com/file/d/1ZS2ApElLkWSKLd4xX2zf7bDHMpaMIjSF/view?usp=sharing)
 
 <br>
 
@@ -112,6 +113,7 @@ Below are explanations of the arguments:
 **Note**: After inference, the script saves a `.pkl` file containing all generated samples in the same checkpoint folder (i.e., `mask_class_conditioning_checkpoints/latest` by default).
 
 ---
+
 
 ## 💥 News 💥
 - **`09.04.2025`** | Code is released!
