@@ -229,9 +229,9 @@ def main():
             batch_time = end_time - start_time
             total_time += batch_time  # Accumulate total time
 
-            if "masks" not in batch:
+            if mask_conditioning and "masks" not in batch:
                 raise KeyError(
-                    "Expected 'masks' in the batch. The dataset format and loader require masks."
+                    "mask_conditioning is enabled but the dataloader batch has no 'masks' key."
                 )
 
             masks_t = batch.get("masks")

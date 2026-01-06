@@ -54,12 +54,14 @@ class MergedModel(nn.Module):
         if t.dim() == 0:
             t = t.expand(x.shape[0])
 
-        if cond.dim() == 2:
+        if cond is not None and cond.dim() == 2:
             cond = cond.unsqueeze(1)
 
         # t's shape should be [B]
 
         if self.has_controlnet:
+            if masks is None:
+                raise KeyError("mask_conditioning is enabled but no `masks` were provided in the batch.")
             # cond is expected to be a ControlNet conditioning, e.g. mask
             down_block_res_samples, mid_block_res_sample = self.controlnet(
                 x=x, timesteps=t, controlnet_cond=masks, context=cond
@@ -229,8 +231,23 @@ def validate_and_save_samples(
     for batch in tqdm(val_loader, desc="Validating"):
         imgs = batch["images"].to(device)
         is_3d = imgs.dim() == 5
-        cond = batch["classes"].to(device).unsqueeze(1) if class_conditioning else None
-        masks = batch["masks"].to(device) if mask_conditioning else None
+        if class_conditioning:
+            if "classes" not in batch:
+                raise KeyError(
+                    "class_conditioning is enabled but the dataloader batch has no 'classes' key."
+                )
+            cond = batch["classes"].to(device).unsqueeze(1)
+        else:
+            cond = None
+
+        if mask_conditioning:
+            if "masks" not in batch:
+                raise KeyError(
+                    "mask_conditioning is enabled but the dataloader batch has no 'masks' key."
+                )
+            masks = batch["masks"].to(device)
+        else:
+            masks = None
 
         x_init = torch.randn_like(imgs)
         sol = sample_with_solver(
@@ -296,8 +313,19 @@ def sample_batch(
 ):
     model.eval()
     imgs = batch["images"].to(device)
-    cond = batch["classes"].to(device).unsqueeze(1) if class_conditioning else None
-    masks = batch["masks"].to(device) if mask_conditioning else None
+    if class_conditioning:
+        if "classes" not in batch:
+            raise KeyError("class_conditioning is enabled but the batch has no 'classes' key.")
+        cond = batch["classes"].to(device).unsqueeze(1)
+    else:
+        cond = None
+
+    if mask_conditioning:
+        if "masks" not in batch:
+            raise KeyError("mask_conditioning is enabled but the batch has no 'masks' key.")
+        masks = batch["masks"].to(device)
+    else:
+        masks = None
 
     x_init = torch.randn_like(imgs)
     sol = sample_with_solver(

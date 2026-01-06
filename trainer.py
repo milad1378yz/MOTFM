@@ -1,5 +1,6 @@
 import argparse
 import os
+import warnings
 from typing import Optional
 
 import torch
@@ -29,28 +30,119 @@ class FlowMatchingDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         data_config = self.config["data_args"]
+        model_config = self.config.get("model_args", {})
+
+        spatial_dims = model_config.get("spatial_dims", None)
+        if spatial_dims is not None:
+            spatial_dims = int(spatial_dims)
+
+        # Normalization knobs (optional in config; defaults preserve existing behavior).
+        image_norm = data_config.get("image_norm", "minmax_0_1")
+        mask_norm = data_config.get("mask_norm", "minmax_0_1")
+        norm_scope = data_config.get("norm_scope", "global")
+        clip_percentiles = data_config.get("clip_percentiles", None)
+        if clip_percentiles is not None:
+            clip_percentiles = (float(clip_percentiles[0]), float(clip_percentiles[1]))
+        norm_eps = float(data_config.get("norm_eps", 1e-6))
+
+        # Class mapping: prefer explicit ordering if provided.
+        class_values = data_config.get("class_values", None)
+        class_to_idx = {c: i for i, c in enumerate(class_values)} if class_values else None
+
+        class_conditioning = bool(model_config.get("with_conditioning", False))
+        expected_num_classes = None
+        if class_conditioning:
+            if model_config.get("cross_attention_dim", None) is None:
+                raise ValueError(
+                    "`model_args.with_conditioning` is True but `model_args.cross_attention_dim` is missing."
+                )
+            expected_num_classes = int(model_config["cross_attention_dim"])
+            if class_values and expected_num_classes != len(class_values):
+                raise ValueError(
+                    f"`model_args.cross_attention_dim`={expected_num_classes} does not match "
+                    f"`data_args.class_values` length ({len(class_values)})."
+                )
 
         def _load(split: str) -> dict:
             return load_and_prepare_data(
                 pickle_path=data_config["pickle_path"],
                 split=split,
                 convert_classes_to_onehot=True,
+                spatial_dims=spatial_dims,
+                image_norm=image_norm,
+                mask_norm=mask_norm,
+                norm_scope=norm_scope,
+                clip_percentiles=clip_percentiles,
+                norm_eps=norm_eps,
+                class_to_idx=class_to_idx,
+                num_classes=expected_num_classes,
+                class_mapping_split=data_config.get("split_train", "train"),
             )
+
+        mask_conditioning = bool(model_config.get("mask_conditioning", False))
+
+        def _assert_required_keys(data: dict, *, split_name: str) -> None:
+            if mask_conditioning and "masks" not in data:
+                raise ValueError(
+                    f"`model_args.mask_conditioning` is True but split '{split_name}' has no masks."
+                )
+            if class_conditioning and "classes" not in data:
+                raise ValueError(
+                    f"`model_args.with_conditioning` is True but split '{split_name}' has no classes."
+                )
 
         if stage in (None, "fit"):
             self.train_data = _load(data_config["split_train"])
             self.val_data = _load(data_config["split_val"])
+            _assert_required_keys(self.train_data, split_name=data_config["split_train"])
+            _assert_required_keys(self.val_data, split_name=data_config["split_val"])
         elif stage == "validate":
             self.val_data = _load(data_config["split_val"])
+            _assert_required_keys(self.val_data, split_name=data_config["split_val"])
 
     def train_dataloader(self) -> torch.utils.data.DataLoader:
         tr_args = self.config["train_args"]
+        sampler = None
+        shuffle = True
+
+        if bool(tr_args.get("class_balanced_sampling", False)):
+            classes = None if self.train_data is None else self.train_data.get("classes")
+            if classes is None:
+                warnings.warn(
+                    "`train_args.class_balanced_sampling` is enabled but no classes were found; "
+                    "falling back to shuffling."
+                )
+            else:
+                if classes.ndim == 2:
+                    class_idxs = classes.argmax(dim=1).to(dtype=torch.long)
+                    num_classes = int(classes.shape[1])
+                elif classes.ndim == 1:
+                    class_idxs = classes.to(dtype=torch.long)
+                    num_classes = int(class_idxs.max().item() + 1)
+                else:
+                    raise ValueError(
+                        f"Unexpected classes tensor shape {tuple(classes.shape)}; "
+                        "expected [N] indices or [N, K] one-hot."
+                    )
+
+                counts = torch.bincount(class_idxs, minlength=num_classes).to(dtype=torch.float32)
+                power = float(tr_args.get("class_balance_power", 1.0))
+                class_weights = counts.clamp_min(1.0).pow(-power)
+                sample_weights = class_weights[class_idxs].to(dtype=torch.double)
+                sampler = torch.utils.data.WeightedRandomSampler(
+                    weights=sample_weights,
+                    num_samples=len(sample_weights),
+                    replacement=True,
+                )
+                shuffle = False
+
         return create_dataloader(
             Images=self.train_data["images"],
-            Masks=self.train_data["masks"],
+            Masks=self.train_data.get("masks"),
             classes=self.train_data.get("classes"),
             batch_size=tr_args["batch_size"],
-            shuffle=True,
+            shuffle=shuffle,
+            sampler=sampler,
             num_workers=int(tr_args.get("num_workers", 0)),
             pin_memory=tr_args.get("pin_memory", None),
             persistent_workers=tr_args.get("persistent_workers", None),
@@ -61,7 +153,7 @@ class FlowMatchingDataModule(pl.LightningDataModule):
         tr_args = self.config["train_args"]
         return create_dataloader(
             Images=self.val_data["images"],
-            Masks=self.val_data["masks"],
+            Masks=self.val_data.get("masks"),
             classes=self.val_data.get("classes"),
             batch_size=tr_args["batch_size"],
             shuffle=False,
@@ -85,8 +177,23 @@ class FlowMatchingLightningModule(pl.LightningModule):
 
     def _compute_loss(self, batch: dict) -> torch.Tensor:
         im_batch = batch["images"]
-        mask_batch = batch["masks"] if self.mask_conditioning else None
-        class_batch = batch["classes"] if self.class_conditioning else None
+        if self.mask_conditioning:
+            if "masks" not in batch:
+                raise KeyError(
+                    "mask_conditioning is enabled but the dataloader batch has no 'masks' key."
+                )
+            mask_batch = batch["masks"]
+        else:
+            mask_batch = None
+
+        if self.class_conditioning:
+            if "classes" not in batch:
+                raise KeyError(
+                    "class_conditioning is enabled but the dataloader batch has no 'classes' key."
+                )
+            class_batch = batch["classes"]
+        else:
+            class_batch = None
 
         x_0 = torch.randn_like(im_batch)
         t = torch.rand(im_batch.shape[0], device=im_batch.device)
