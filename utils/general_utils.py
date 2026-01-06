@@ -52,8 +52,6 @@ def normalize_minusone_to_one(tensor: torch.Tensor):
 def load_and_prepare_data(
     pickle_path: str,
     split: str = "train",
-    new_masking: bool = False,
-    threshold_mask: float = 0.15,
     convert_classes_to_onehot: bool = False,
     is_ddpm: bool = False,
 ) -> Dict[str, torch.Tensor]:
@@ -63,8 +61,6 @@ def load_and_prepare_data(
 
     If 'use_masks_as_condition' is True, returns (X, Y=mask).
     Otherwise, returns (X, None).
-
-    'new_masking' optionally modifies the mask using thresholding logic.
 
     Returns:
       X: [N, C, H, W] float tensor
@@ -88,12 +84,6 @@ def load_and_prepare_data(
     Images = normalize_zero_to_one(Images)
 
     Masks = torch.stack(mks, dim=0).unsqueeze(1)  # [N, 1, H, W]
-
-    if new_masking:
-        # Vectorized new masking logic
-        mask_new = (Images > threshold_mask).float()
-        Masks = Masks * mask_new
-        Masks = Masks + mask_new
     Masks = normalize_zero_to_one(Masks)
 
     result = {"images": Images, "masks": Masks}

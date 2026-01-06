@@ -34,7 +34,6 @@ class FlowMatchingDataModule(pl.LightningDataModule):
             return load_and_prepare_data(
                 pickle_path=data_config["pickle_path"],
                 split=split,
-                new_masking=True,
                 convert_classes_to_onehot=True,
             )
 

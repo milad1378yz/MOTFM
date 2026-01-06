@@ -7,6 +7,7 @@ import time
 from typing import Dict, Optional, Tuple
 
 from tqdm import tqdm
+import numpy as np
 
 # Suppress most warnings for cleaner logs (comment out if debugging is needed)
 warnings.filterwarnings("ignore")
@@ -16,10 +17,10 @@ import torch
 # Ensure the script can find the utils modules
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.general_utils import create_dataloader, load_and_prepare_data, load_config
+from utils.general_utils import load_config
 from utils.utils_fm import sample_batch
 
-from trainer import FlowMatchingLightningModule
+from trainer import FlowMatchingDataModule, FlowMatchingLightningModule
 
 
 def _select_checkpoint_file(ckpt_dir: str) -> Optional[str]:
@@ -168,20 +169,12 @@ def main():
         sys.exit()
 
     # Load dataset for inference
-    data_config = config["data_args"]
-    val_data = load_and_prepare_data(
-        pickle_path=data_config["pickle_path"],
-        split=data_config["split_val"],
-        new_masking=True,
-        convert_classes_to_onehot=True,
-    )
-    val_loader = create_dataloader(
-        Images=val_data["images"],
-        Masks=val_data["masks"],
-        classes=val_data.get("classes"),
-        batch_size=config["train_args"]["batch_size"],
-        shuffle=False,
-    )
+    datamodule = FlowMatchingDataModule(config)
+    datamodule.setup(stage="validate")
+    val_data = datamodule.val_data
+    if val_data is None:
+        raise RuntimeError("Failed to initialize validation data for inference.")
+    val_loader = datamodule.val_dataloader()
 
     # Determine the number of samples to infer
     dataset_size = len(val_loader.dataset)
@@ -198,8 +191,12 @@ def main():
     model_args = config.get("model_args", {})
     class_conditioning = bool(model_args.get("with_conditioning", False))
     mask_conditioning = bool(model_args.get("mask_conditioning", False))
-    # Initialize containers for generated data
-    generated_data = {"train": []}  # Assuming training data is not generated here
+    # Save using the same split keys expected by the trainer config.
+    data_args = config.get("data_args", {})
+    split_train_key = data_args.get("split_train", "train")
+    split_val_key = data_args.get("split_val", "valid")
+    generated_samples = []
+    global_min, global_max = np.float32(np.inf), np.float32(-np.inf)
 
     samples_collected = 0
     total_time = 0  # Initialize total time
@@ -232,36 +229,45 @@ def main():
             batch_time = end_time - start_time
             total_time += batch_time  # Accumulate total time
 
-            # Assuming batch is a dictionary with keys 'images', 'masks', 'classes'
-            images = batch["images"]
-            masks = batch.get("masks") if mask_conditioning else None
-            classes = batch.get("classes") if class_conditioning else None
+            if "masks" not in batch:
+                raise KeyError(
+                    "Expected 'masks' in the batch. The dataset format and loader require masks."
+                )
 
-            # Move tensors to CPU and convert to appropriate formats
-            final_imgs = final_imgs.cpu().detach().numpy()  # shape: (B, C, H, W)
-            masks = masks.cpu().detach().numpy() if masks is not None else None
-            classes = (
-                classes.cpu().detach().numpy() if classes is not None else None
-            )  # one-hot encoded (B, num_classes)
+            masks_t = batch.get("masks")
+            classes_t = batch.get("classes")
+
+            # Move tensors to CPU and convert to numpy.
+            final_imgs = final_imgs.detach().cpu().numpy()  # shape: (B, C, ...)
+            masks_np = masks_t.detach().cpu().numpy() if masks_t is not None else None
+            classes_np = classes_t.detach().cpu().numpy() if classes_t is not None else None
             batch_size = final_imgs.shape[0]  # B
 
             for i in range(batch_size):
                 if samples_collected >= num_samples:
                     break
 
+                image_np = final_imgs[i].astype(np.float32, copy=False)
+                global_min = np.minimum(global_min, image_np.min())
+                global_max = np.maximum(global_max, image_np.max())
+
+                class_value = (
+                    idx_to_class[int(classes_np[i].argmax())]
+                    if (idx_to_class is not None and classes_np is not None)
+                    else None
+                )
+
                 sample_dict = {
-                    "image": final_imgs[i],  # Assuming final_imgs are already normalized
-                    "mask": masks[i] if masks is not None else None,
-                    "class": (
-                        idx_to_class[classes[i].argmax()]
-                        if (idx_to_class is not None and classes is not None)
-                        else None
+                    "image": image_np,
+                    "mask": (
+                        masks_np[i].astype(np.float32, copy=False) if masks_np is not None else None
                     ),
                     "name": f"sample_{samples_collected}",
-                    "true_data": images[i],
                 }
+                if class_value is not None:
+                    sample_dict["class"] = class_value
 
-                generated_data["train"].append(sample_dict)
+                generated_samples.append(sample_dict)
                 samples_collected += 1
                 pbar.update(1)
 
@@ -272,8 +278,21 @@ def main():
     print(f"Average time per sample: {average_time_per_sample:.4f} seconds")
 
     # Save the generated data to the specified output path
+    if global_max > global_min:
+        offset = global_min
+        scale = global_max - global_min
+        for sample in generated_samples:
+            sample["image"] = (sample["image"] - offset) / scale
+    else:
+        for sample in generated_samples:
+            sample["image"] = np.zeros_like(sample["image"], dtype=np.float32)
+
+    generated_dataset = {split_train_key: generated_samples}
+    if split_val_key != split_train_key:
+        generated_dataset[split_val_key] = generated_samples
+
     with open(output_path, "wb") as f:
-        pickle.dump(generated_data, f)
+        pickle.dump(generated_dataset, f)
 
     print(f"Generated data saved to {output_path}")
 
