@@ -300,8 +300,10 @@ def load_and_prepare_data(
 
     result = {"images": Images}
 
-    has_mask = "mask" in data_split[0]
+    has_mask = any("mask" in e for e in data_split)
     if has_mask:
+        if not all("mask" in e for e in data_split):
+            raise ValueError(f"Split '{split}' has inconsistent samples: some are missing the 'mask' key.")
         mks = [_ensure_channel_first(torch.as_tensor(e["mask"], dtype=torch.float32), name="mask") for e in data_split]
         Masks = torch.stack(mks, dim=0)  # [N, C, ...]
 
@@ -331,8 +333,12 @@ def load_and_prepare_data(
         # Keep downstream code stable: only warn if masks are expected/used elsewhere.
         warnings.warn(f"Split '{split}' has no 'mask' key; returning images only.")
 
-    has_class = "class" in data_split[0]
+    has_class = any("class" in e for e in data_split)
     if has_class:
+        if not all("class" in e for e in data_split):
+            raise ValueError(
+                f"Split '{split}' has inconsistent samples: some are missing the 'class' key."
+            )
         class_list = [e["class"] for e in data_split]
         if convert_classes_to_onehot:
             if class_to_idx is None:
@@ -342,11 +348,15 @@ def load_and_prepare_data(
                     raise ValueError(
                         f"class_mapping_split='{mapping_source}' is empty or missing in the pickle."
                     )
-                if "class" not in mapping_split[0]:
+                if not any("class" in e for e in mapping_split):
                     raise ValueError(
                         f"class_mapping_split='{mapping_source}' has no 'class' key in its samples."
                     )
-                all_classes = sorted({e["class"] for e in mapping_split})
+                all_classes = sorted({e["class"] for e in mapping_split if "class" in e})
+                if not all_classes:
+                    raise ValueError(
+                        f"class_mapping_split='{mapping_source}' has no usable class values."
+                    )
                 class_to_idx = {c: i for i, c in enumerate(all_classes)}
 
             if num_classes is None:
