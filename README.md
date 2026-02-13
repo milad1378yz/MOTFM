@@ -94,23 +94,68 @@ python trainer.py --config_path configs/default.yaml
 
 ## Inference
 
-To run inference with a trained model, use:
+Use `inferer.py` to generate synthetic samples from a trained checkpoint and save them as a `.pkl`.
+
+### Quick start
+
+Run with your config and checkpoint directory:
 ```bash
 python inferer.py \
     --config_path configs/default.yaml \
-    --num_samples 2000 \
-    --model_path mask_class_conditioning_checkpoints/latest \
-    --num_inference_steps 5
+    --model_path mask_class_conditioning_checkpoints/default \
+    --num_samples 200 \
+    --num_inference_steps 5 \
+    --output_norm clip_0_1
 ```
 
-Below are explanations of the arguments:
+For the CAMUS 10-epoch example in this repo:
+```bash
+python inferer.py \
+    --config_path configs/mask_class_conditioning_camus_10ep.yaml \
+    --model_path mask_class_conditioning_checkpoints/mask_class_conditioning_camus_10ep \
+    --num_samples 16 \
+    --num_inference_steps 10 \
+    --output_norm clip_0_1
+```
 
-- **`--config_path`** (str): Path to the configuration file. Defaults to `configs/default.yaml`.
-- **`--num_samples`** (int): Number of samples to save. If you set it to `None`, all samples are saved. Defaults to `2000`.
-- **`--model_path`** (str): Path to the model checkpoint to load. Defaults to `mask_class_conditioning_checkpoints/latest`.
-- **`--num_inference_steps`** (int): Number of inference steps during sampling. Defaults to `5`.
+### Arguments
 
-**Note**: After inference, the script saves a `.pkl` file containing all generated samples in the same checkpoint folder (i.e., `mask_class_conditioning_checkpoints/latest` by default).
+- **`--config_path`** (`str`, default: `configs/default.yaml`): Config file used for model/data setup.
+- **`--model_path`** (`str`, optional): Checkpoint `.ckpt` file or directory.
+- **`--num_samples`** (`int`, default: `10`): Number of samples to save.
+- **`--num_inference_steps`** (`int`, default: `5`): Number of solver time points used during sampling.
+- **`--output_path`** (`str`, optional): Explicit output `.pkl` path.
+- **`--overwrite`** (`flag`): Overwrite an existing file at `--output_path`.
+- **`--output_norm`** (`str`, default: `clip_0_1`): One of `clip_0_1`, `per_sample_minmax`, `global_minmax`, `none`.
+- **`--allow_config_mismatch`** (`flag`): Allow loading a checkpoint whose saved critical model fields differ from current config.
+
+### Checkpoint resolution behavior
+
+If `--model_path` is omitted, inferer searches:
+- `train_args.checkpoint_dir/<config_basename>`
+
+If `--model_path` is provided, inferer checks (in order):
+- `<model_path>`
+- `<model_path>/<config_basename>`
+- `<model_path>/latest`
+
+If a directory is selected, checkpoint preference is:
+- `last.ckpt` (if present)
+- otherwise, the most recently modified `*.ckpt`
+
+### Output behavior
+
+- If `--output_path` is omitted, output is saved in the resolved checkpoint directory as:
+  - `samples_<config_basename>_<checkpoint_name>_steps<time_points>.pkl`
+- If output file exists and `--overwrite` is not set, a timestamp suffix is appended automatically.
+- Generated samples are produced from the validation split and saved under:
+  - `data_args.split_train`
+  - and also `data_args.split_val` if that key is different.
+
+### CPU-only note
+
+If you run inference on CPU, set `model_args.use_flash_attention: false` in your config.  
+Flash attention requires CUDA and will raise an error otherwise.
 
 ---
 

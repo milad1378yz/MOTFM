@@ -1,7 +1,7 @@
 import argparse
 import os
 import warnings
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import torch.nn.functional as F
@@ -283,6 +283,32 @@ def _resolve_resume_checkpoint(
     return max(_candidates, key=os.path.getmtime)
 
 
+def _resolve_strategy(
+    accelerator: Union[str, int, list, tuple],
+    devices: Union[str, int, list, tuple],
+):
+    """
+    Use DDP only for true multi-GPU execution.
+    For single device (or CPU), keep strategy="auto" to avoid needless overhead.
+    """
+    if str(accelerator).lower() not in {"gpu", "cuda"}:
+        return "auto"
+
+    if isinstance(devices, int):
+        return DDPStrategy(find_unused_parameters=True) if devices > 1 else "auto"
+    if isinstance(devices, (list, tuple)):
+        return DDPStrategy(find_unused_parameters=True) if len(devices) > 1 else "auto"
+    if isinstance(devices, str):
+        d = devices.strip().lower()
+        if d in {"auto", "1"}:
+            return "auto"
+        # Comma-separated ids, e.g. "0,1"
+        if "," in d:
+            ids = [x for x in d.split(",") if x.strip() != ""]
+            return DDPStrategy(find_unused_parameters=True) if len(ids) > 1 else "auto"
+    return "auto"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the flow matching model with Lightning.")
     parser.add_argument(
@@ -334,6 +360,10 @@ def main() -> None:
     else:
         print("No checkpoint found. Starting training from scratch.")
 
+    accelerator = tr.get("accelerator", "auto")
+    devices = tr.get("devices", "auto")
+    strategy = _resolve_strategy(accelerator=accelerator, devices=devices)
+
     trainer = pl.Trainer(
         default_root_dir=root_ckpt_dir,
         max_epochs=tr["num_epochs"],
@@ -345,10 +375,9 @@ def main() -> None:
         logger=logger,
         callbacks=cbs,
         # Distributed/accelerator knobs
-        accelerator=tr.get("accelerator", "auto"),
-        devices=tr.get("devices", "auto"),
-        # strategy=tr.get("strategy", "auto"),
-        strategy=DDPStrategy(find_unused_parameters=True),
+        accelerator=accelerator,
+        devices=devices,
+        strategy=strategy,
         deterministic=tr.get("deterministic", False),
         log_every_n_steps=tr.get("log_every_n_steps", 50),
         num_sanity_val_steps=tr.get("num_sanity_val_steps", 0),

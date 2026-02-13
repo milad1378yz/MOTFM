@@ -1,0 +1,47 @@
+model_args:
+  spatial_dims: 2
+  in_channels: 1
+  out_channels: 1
+  num_res_blocks: [2, 2, 2, 2, 2]
+  num_channels: [32, 64, 128, 256, 512]
+  attention_levels: [False, False, True, True, True]
+  norm_num_groups: 32
+  resblock_updown: True
+  num_head_channels: [32, 64, 128, 256, 512]
+  transformer_num_layers: 6
+  use_flash_attention: true
+  with_conditioning: True
+  mask_conditioning: True
+  cross_attention_dim: 4
+  conditioning_embedding_num_channels: [16]
+
+data_args:
+  pickle_path: "./data/camus/dataset.pkl"
+  split_train: "train"
+  split_val: "valid"
+  # Explicit normalization to avoid hidden global min/max effects.
+  image_norm:
+    mode: "auto"
+    scope: "sample"
+  mask_norm:
+    mode: "none"
+
+train_args:
+  num_epochs: 10
+  batch_size: 1
+  lr: 0.0001
+  print_every: 1
+  val_freq: 1
+  device: "cuda:0"
+  accelerator: "gpu"
+  devices: [0]
+  precision: "16-mixed"
+  num_workers: 4
+  gradient_accumulation_steps: 1
+  num_val_samples: 8
+  checkpoint_dir: "mask_class_conditioning_checkpoints"
+
+solver_args:
+  method: "euler"
+  step_size: 0.1
+  time_points: 10
