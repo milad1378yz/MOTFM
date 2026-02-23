@@ -7,7 +7,10 @@ from generative.networks.nets import DiffusionModelUNet, ControlNet
 from flow_matching.solver import ODESolver
 
 from .general_utils import normalize_zero_to_one, save_image, save_image_3d
+from .motfm_logging import get_logger
 from tqdm import tqdm
+
+logger = get_logger(__name__)
 
 
 ###############################################################################
@@ -118,10 +121,14 @@ def build_model(model_config: dict, device: torch.device = None) -> MergedModel:
     model = MergedModel(unet=unet, controlnet=controlnet, max_timestep=max_timestep)
 
     # Print number of trainable parameters.
+    logger.info(
+        f"Building model with mask_conditioning={mask_conditioning} and "
+        f"max_timestep={max_timestep}."
+    )
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Model has {num_params} trainable parameters.")
+    logger.info(f"Model has {num_params} trainable parameters.")
     model_size_mb = num_params * 4 / (1024**2)
-    print(f"Model size: {model_size_mb:.2f} MB")
+    logger.info(f"Model size: {model_size_mb:.2f} MB")
 
     return model.to(device)
 
@@ -226,6 +233,9 @@ def validate_and_save_samples(
     model.eval()
     outdir = os.path.join(checkpoint_dir, f"val_samples_epoch_{epoch}")
     os.makedirs(outdir, exist_ok=True)
+    logger.info(
+        f"Saving validation samples: epoch={epoch}, max_samples={max_samples}, output_dir={outdir}."
+    )
     count, step_plot_done = 0, False
     for batch in tqdm(val_loader, desc="Validating"):
         imgs = batch["images"].to(device)
@@ -298,7 +308,7 @@ def validate_and_save_samples(
             step_plot_done = True
         if count >= max_samples:
             break
-    print(f"Validation samples saved in: {outdir}")
+    logger.info(f"Validation samples saved in: {outdir}")
 
 
 @torch.no_grad()

@@ -14,9 +14,12 @@ warnings.filterwarnings("ignore")
 import torch
 
 from utils.general_utils import load_config
+from utils.motfm_logging import get_logger
 from utils.utils_fm import sample_batch
 
 from trainer import FlowMatchingDataModule, FlowMatchingLightningModule
+
+logger = get_logger(__name__)
 
 
 def _select_checkpoint_file(ckpt_dir: str) -> Optional[str]:
@@ -117,8 +120,8 @@ def validate_checkpoint_config(
     """
     ckpt_config = _extract_checkpoint_config(checkpoint)
     if ckpt_config is None:
-        print(
-            "Warning: checkpoint has no recoverable saved config; skipping compatibility checks."
+        logger.warning(
+            "Checkpoint has no recoverable saved config; skipping compatibility checks."
         )
         return
 
@@ -153,7 +156,7 @@ def validate_checkpoint_config(
     message = "\n".join(lines)
 
     if allow_mismatch:
-        print("Warning:", message)
+        logger.warning(message)
     else:
         raise ValueError(message)
 
@@ -275,10 +278,10 @@ def main():
 
     # Load config and determine checkpoint path
     config_path = args.config_path
-
+    logger.info(f"Loading config from: {config_path}")
     config = load_config(config_path)
     checkpoint_path, checkpoint_dir = resolve_checkpoint_path(args.model_path, config, config_path)
-    print(f"Using checkpoint: {checkpoint_path}")
+    logger.info(f"Using checkpoint: {checkpoint_path}")
 
     # Device setup
     device = (
@@ -286,7 +289,7 @@ def main():
         if torch.cuda.is_available()
         else torch.device("cpu")
     )
-    print("Inference device:", device)
+    logger.info(f"Inference device: {device}")
 
     # Build model and load checkpoint
     model, metadata = load_model_from_checkpoint(
@@ -295,9 +298,8 @@ def main():
         device=device,
         allow_config_mismatch=args.allow_config_mismatch,
     )
-    print(
-        f"Checkpoint metadata: epoch={metadata['epoch']}, "
-        f"global_step={metadata['global_step']}"
+    logger.info(
+        f"Checkpoint metadata: epoch={metadata['epoch']}, global_step={metadata['global_step']}"
     )
 
     solver_config = build_solver_config(config, args.num_inference_steps)
@@ -315,18 +317,18 @@ def main():
 
     if os.path.exists(output_path):
         if args.overwrite:
-            print(f"Overwriting existing output file: {output_path}")
+            logger.info(f"Overwriting existing output file: {output_path}")
         else:
             base, ext = os.path.splitext(output_path)
             timestamp = time.strftime("%Y%m%d-%H%M%S")
             ext = ext or ".pkl"
             output_path = f"{base}_{timestamp}{ext}"
-            print(
+            logger.warning(
                 "Output file already exists and --overwrite was not set. "
                 f"Writing to: {output_path}"
             )
 
-    print(f"Saving generated data to {output_path}")
+    logger.info(f"Saving generated data to {output_path}")
 
     # Load dataset for inference
     datamodule = FlowMatchingDataModule(config)
@@ -335,13 +337,14 @@ def main():
     if val_data is None:
         raise RuntimeError("Failed to initialize validation data for inference.")
     val_loader = datamodule.val_dataloader()
+    logger.info(f"Validation dataloader ready. Dataset size: {len(val_loader.dataset)}")
 
     # Determine the number of samples to infer
     dataset_size = len(val_loader.dataset)
     num_samples = dataset_size if args.num_samples is None else args.num_samples
-    print(f"Number of samples to save: {num_samples}")
+    logger.info(f"Number of samples to save: {num_samples}")
 
-    print(
+    logger.info(
         f"Solver config: method={solver_config['method']}, "
         f"step_size={solver_config['step_size']}, "
         f"time_points={solver_config['time_points']}"
@@ -351,15 +354,21 @@ def main():
     model_args = config.get("model_args", {})
     class_conditioning = bool(model_args.get("with_conditioning", False))
     mask_conditioning = bool(model_args.get("mask_conditioning", False))
+    logger.info(
+        f"Conditioning modes: class_conditioning={class_conditioning}, "
+        f"mask_conditioning={mask_conditioning}"
+    )
     # Save using the same split keys expected by the trainer config.
     data_args = config.get("data_args", {})
     split_train_key = data_args.get("split_train", "train")
     split_val_key = data_args.get("split_val", "valid")
+    logger.info(f"Output split keys: train='{split_train_key}', val='{split_val_key}'")
     generated_samples = []
     raw_global_min, raw_global_max = np.float32(np.inf), np.float32(-np.inf)
 
     samples_collected = 0
     total_time = 0  # Initialize total time
+    iterator_resets = 0
 
     # Create an iterator that can be reset when the dataset is exhausted
     val_iterator = iter(val_loader)
@@ -372,6 +381,7 @@ def main():
                 # Reinitialize the iterator if the dataset is exhausted
                 val_iterator = iter(val_loader)
                 batch = next(val_iterator)
+                iterator_resets += 1
 
             start_time = time.time()  # Start time for the batch
 
@@ -426,14 +436,19 @@ def main():
                 samples_collected += 1
                 pbar.update(1)
 
-    print(f"Collected {samples_collected} samples.")
+    logger.info(f"Collected {samples_collected} samples.")
+    if iterator_resets > 0:
+        logger.info(
+            f"Validation dataloader iterator reset {iterator_resets} time(s) "
+            "to reach requested sample count."
+        )
 
     # Calculate and print average time per sample
     average_time_per_sample = total_time / samples_collected
-    print(f"Average time per sample: {average_time_per_sample:.4f} seconds")
+    logger.info(f"Average time per sample: {average_time_per_sample:.4f} seconds")
 
-    print(f"Raw generated range: [{float(raw_global_min):.6f}, {float(raw_global_max):.6f}]")
-    print(f"Applying output normalization mode: {args.output_norm}")
+    logger.info(f"Raw generated range: [{float(raw_global_min):.6f}, {float(raw_global_max):.6f}]")
+    logger.info(f"Applying output normalization mode: {args.output_norm}")
 
     if args.output_norm == "global_minmax":
         if raw_global_max > raw_global_min:
@@ -444,6 +459,10 @@ def main():
                     np.float32, copy=False
                 )
         else:
+            logger.warning(
+                "Global min-max normalization skipped dynamic scaling because all generated values "
+                "were constant."
+            )
             for sample in generated_samples:
                 sample["image"] = np.zeros_like(sample["image"], dtype=np.float32)
     else:
@@ -457,7 +476,7 @@ def main():
     with open(output_path, "wb") as f:
         pickle.dump(generated_dataset, f)
 
-    print(f"Generated data saved to {output_path}")
+    logger.info(f"Generated data saved to {output_path}")
 
 
 if __name__ == "__main__":

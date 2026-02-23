@@ -1,6 +1,5 @@
 import argparse
 import os
-import warnings
 from typing import Optional, Union
 
 import torch
@@ -16,7 +15,10 @@ from flow_matching.path import AffineProbPath
 from flow_matching.path.scheduler import CondOTScheduler
 
 from utils.general_utils import create_dataloader, load_and_prepare_data, load_config
+from utils.motfm_logging import get_logger
 from utils.utils_fm import build_model, validate_and_save_samples
+
+logger = get_logger(__name__)
 
 
 class FlowMatchingDataModule(pl.LightningDataModule):
@@ -31,6 +33,9 @@ class FlowMatchingDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None) -> None:
         data_config = self.config["data_args"]
         model_config = self.config.get("model_args", {})
+        logger.info(
+            f"Setting up data module for stage='{stage}' with pickle='{data_config['pickle_path']}'."
+        )
 
         spatial_dims = model_config.get("spatial_dims", None)
         if spatial_dims is not None:
@@ -96,9 +101,15 @@ class FlowMatchingDataModule(pl.LightningDataModule):
             self.val_data = _load(data_config["split_val"])
             _assert_required_keys(self.train_data, split_name=data_config["split_train"])
             _assert_required_keys(self.val_data, split_name=data_config["split_val"])
+            logger.info(
+                "Loaded train/val splits: "
+                f"train={int(self.train_data['images'].shape[0])}, "
+                f"val={int(self.val_data['images'].shape[0])}."
+            )
         elif stage == "validate":
             self.val_data = _load(data_config["split_val"])
             _assert_required_keys(self.val_data, split_name=data_config["split_val"])
+            logger.info(f"Loaded validation split: val={int(self.val_data['images'].shape[0])}.")
 
     def train_dataloader(self) -> torch.utils.data.DataLoader:
         tr_args = self.config["train_args"]
@@ -108,9 +119,9 @@ class FlowMatchingDataModule(pl.LightningDataModule):
         if bool(tr_args.get("class_balanced_sampling", False)):
             classes = None if self.train_data is None else self.train_data.get("classes")
             if classes is None:
-                warnings.warn(
-                    "`train_args.class_balanced_sampling` is enabled but no classes were found; "
-                    "falling back to shuffling."
+                logger.warning(
+                    "Class-balanced sampling is enabled but no classes were found; "
+                    "falling back to shuffle=True."
                 )
             else:
                 if classes.ndim == 2:
@@ -135,6 +146,9 @@ class FlowMatchingDataModule(pl.LightningDataModule):
                     replacement=True,
                 )
                 shuffle = False
+                logger.info(
+                    f"Using class-balanced sampling with {num_classes} classes and power={power:.3f}."
+                )
 
         return create_dataloader(
             Images=self.train_data["images"],
@@ -243,6 +257,7 @@ class FlowMatchingLightningModule(pl.LightningModule):
         val_loader = self.trainer.datamodule.val_dataloader()
 
         # Execute the validation sampling and saving
+        logger.info(f"Running validation sample export for epoch {self.current_epoch}.")
         validate_and_save_samples(
             model=self.model,
             val_loader=val_loader,
@@ -323,13 +338,16 @@ def main() -> None:
     run_name = os.path.splitext(os.path.basename(args.config_path))[0]
     tr = config["train_args"]
     root_ckpt_dir = tr["checkpoint_dir"]
+    logger.info(f"Loaded training config: {args.config_path}")
+    logger.info(f"Run name: {run_name}")
+    logger.info(f"Checkpoint root directory: {root_ckpt_dir}")
 
     # Data and model modules
     datamodule = FlowMatchingDataModule(config)
     model = FlowMatchingLightningModule(config)
 
     # Logging and callbacks
-    logger = TensorBoardLogger(save_dir=root_ckpt_dir, name=run_name)
+    tb_logger = TensorBoardLogger(save_dir=root_ckpt_dir, name=run_name)
     ckpt_every = max(1, int(tr.get("val_freq", 5)))
     ckpt_cb = ModelCheckpoint(
         dirpath=os.path.join(root_ckpt_dir, run_name),
@@ -356,13 +374,17 @@ def main() -> None:
 
     resume_ckpt = _resolve_resume_checkpoint(tr.get("ckpt_path"), root_ckpt_dir, run_name)
     if resume_ckpt:
-        print(f"Resuming training from checkpoint: {resume_ckpt}")
+        logger.info(f"Resuming training from checkpoint: {resume_ckpt}")
     else:
-        print("No checkpoint found. Starting training from scratch.")
+        logger.info("No checkpoint found. Starting training from scratch.")
 
     accelerator = tr.get("accelerator", "auto")
     devices = tr.get("devices", "auto")
     strategy = _resolve_strategy(accelerator=accelerator, devices=devices)
+    logger.info(
+        f"Trainer runtime: accelerator={accelerator}, devices={devices}, "
+        f"strategy={strategy}, precision={precision}."
+    )
 
     trainer = pl.Trainer(
         default_root_dir=root_ckpt_dir,
@@ -372,7 +394,7 @@ def main() -> None:
         gradient_clip_val=tr.get("grad_clip_norm", 0.0) or None,
         check_val_every_n_epoch=ckpt_every,
         enable_progress_bar=True,
-        logger=logger,
+        logger=tb_logger,
         callbacks=cbs,
         # Distributed/accelerator knobs
         accelerator=accelerator,

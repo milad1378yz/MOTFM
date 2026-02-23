@@ -2,12 +2,14 @@ import os
 import yaml
 import torch
 import pickle
-import warnings
 from typing import Dict, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader, Dataset
+from .motfm_logging import get_logger
+
+logger = get_logger(__name__)
 
 
 ###############################################################################
@@ -19,6 +21,7 @@ def load_config(config_path: str = "config.yaml"):
     """
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
+    logger.info(f"Loaded config file: {config_path}")
     return config
 
 
@@ -319,7 +322,7 @@ def load_and_prepare_data(
         result["masks"] = Masks
     else:
         # Keep downstream code stable: only warn if masks are expected/used elsewhere.
-        warnings.warn(f"Split '{split}' has no 'mask' key; returning images only.")
+        logger.warning(f"Split '{split}' has no 'mask' key; returning images only.")
 
     has_class = any("class" in e for e in data_split)
     if has_class:
@@ -374,6 +377,10 @@ def load_and_prepare_data(
             except Exception:
                 result["classes"] = class_list
 
+    logger.info(
+        f"Prepared split '{split}' with {len(data_split)} samples "
+        f"(masks={'masks' in result}, classes={'classes' in result})."
+    )
     return result
 
 
@@ -410,7 +417,7 @@ def create_dataloader(
         persistent_workers = num_workers > 0
 
     if sampler is not None and shuffle:
-        warnings.warn("Both sampler and shuffle were set; disabling shuffle in favor of sampler.")
+        logger.warning("Both sampler and shuffle were set; disabling shuffle in favor of sampler.")
         shuffle = False
 
     return DataLoader(
