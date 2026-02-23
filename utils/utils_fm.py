@@ -1,12 +1,13 @@
 import os
 import json
+
 import torch
 import matplotlib.pyplot as plt
 from torch import nn
 from generative.networks.nets import DiffusionModelUNet, ControlNet
 from flow_matching.solver import ODESolver
 
-from .general_utils import normalize_zero_to_one, save_image, save_image_3d
+from .general_utils import class_name_from_map, normalize_zero_to_one, save_image, save_image_3d
 from .motfm_logging import get_logger
 from tqdm import tqdm
 
@@ -63,7 +64,9 @@ class MergedModel(nn.Module):
 
         if self.has_controlnet:
             if masks is None:
-                raise KeyError("mask_conditioning is enabled but no `masks` were provided in the batch.")
+                raise KeyError(
+                    "mask_conditioning is enabled but no `masks` were provided in the batch."
+                )
             # cond is expected to be a ControlNet conditioning, e.g. mask
             down_block_res_samples, mid_block_res_sample = self.controlnet(
                 x=x, timesteps=t, controlnet_cond=masks, context=cond
@@ -202,7 +205,7 @@ def plot_solver_steps(sol, im_batch, mask_batch, class_batch, class_map, outdir,
             axes[i][col].set_title("Real")
         if class_map and class_batch is not None:
             idx = class_batch[i].argmax().item()
-            cls = class_map[idx] if idx < len(class_map) else str(idx)
+            cls = class_name_from_map(class_map, idx)
             axes[i][col].text(
                 0.5,
                 -0.15,
@@ -289,13 +292,13 @@ def validate_and_save_samples(
                     save_image(cnd_img, os.path.join(sdir, "mask.png"))
             if class_map and "classes" in batch:
                 idx = batch["classes"][i].argmax().item()
-                with open(os.path.join(sdir, "class.json"), "w") as f:
+                with open(os.path.join(sdir, "class.json"), "w", encoding="utf-8") as f:
                     json.dump(
                         {
                             "class_index": idx,
-                            "class_name": class_map[idx] if idx < len(class_map) else str(idx),
+                            "class_name": class_name_from_map(class_map, idx),
                             "class_map": class_map,
-                            "class_coditioning": class_conditioning,
+                            "class_conditioning": class_conditioning,
                             "mask_conditioning": mask_conditioning,
                         },
                         f,

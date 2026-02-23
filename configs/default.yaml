@@ -29,7 +29,7 @@ model_args:
   # Number of layers if a transformer block is employed (cross-attention).
   transformer_num_layers: 6
   
-  # Toggles the use of more efficient “flash” attention implementations, if supported.
+  # Toggles the use of more efficient "flash" attention implementations, if supported.
   use_flash_attention: true
   
   # Whether to enable cross-attention/conditioning in the UNet.
@@ -70,6 +70,9 @@ train_args:
   
   # Which device to run on: "cuda" for GPU, "cpu" for CPU.
   device: "cuda"
+
+  # Enables deterministic kernels where possible (slower but more reproducible).
+  deterministic: false
   
   # Number of samples to visualize/validate during validation passes.
   num_val_samples: 10
@@ -85,5 +88,5 @@ solver_args:
   step_size: 0.1
   
   # Number of time points for intermediate sampling or evaluation.
-  # NOTE: This must be ≤ the number of total solver steps.
+  # NOTE: This must be <= the number of total solver steps.
   time_points: 10

@@ -342,6 +342,12 @@ def main() -> None:
     logger.info(f"Run name: {run_name}")
     logger.info(f"Checkpoint root directory: {root_ckpt_dir}")
 
+    seed = tr.get("seed")
+    if seed is not None:
+        seed = int(seed)
+        pl.seed_everything(seed, workers=True)
+        logger.info(f"Using seed={seed} for reproducible training.")
+
     # Data and model modules
     datamodule = FlowMatchingDataModule(config)
     model = FlowMatchingLightningModule(config)
@@ -381,9 +387,10 @@ def main() -> None:
     accelerator = tr.get("accelerator", "auto")
     devices = tr.get("devices", "auto")
     strategy = _resolve_strategy(accelerator=accelerator, devices=devices)
+    deterministic = bool(tr.get("deterministic", False))
     logger.info(
         f"Trainer runtime: accelerator={accelerator}, devices={devices}, "
-        f"strategy={strategy}, precision={precision}."
+        f"strategy={strategy}, precision={precision}, deterministic={deterministic}."
     )
 
     trainer = pl.Trainer(
@@ -400,7 +407,7 @@ def main() -> None:
         accelerator=accelerator,
         devices=devices,
         strategy=strategy,
-        deterministic=tr.get("deterministic", False),
+        deterministic=deterministic,
         log_every_n_steps=tr.get("log_every_n_steps", 50),
         num_sanity_val_steps=tr.get("num_sanity_val_steps", 0),
     )

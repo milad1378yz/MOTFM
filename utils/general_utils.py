@@ -2,7 +2,10 @@ import os
 import yaml
 import torch
 import pickle
-from typing import Dict, Optional, Tuple, Union
+import random
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
+
+import numpy as np
 
 import matplotlib.pyplot as plt
 
@@ -10,6 +13,45 @@ from torch.utils.data import DataLoader, Dataset
 from .motfm_logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def set_global_seed(seed: int) -> None:
+    """Set Python/NumPy/PyTorch random seeds for reproducible runs."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def class_label_from_map(
+    class_map: Optional[Union[Mapping[int, Any], Sequence[Any]]],
+    idx: int,
+    *,
+    default: Any = None,
+) -> Any:
+    """
+    Resolve a class label by index from either dict-like or sequence-like maps.
+
+    Returns ``default`` if no mapping is provided. Returns ``idx`` when mapping exists
+    but the index is out of range or missing.
+    """
+    if class_map is None:
+        return default
+    if isinstance(class_map, Mapping):
+        return class_map.get(idx, idx)
+    if isinstance(class_map, Sequence) and not isinstance(class_map, (str, bytes)):
+        return class_map[idx] if 0 <= idx < len(class_map) else idx
+    return idx
+
+
+def class_name_from_map(
+    class_map: Optional[Union[Mapping[int, Any], Sequence[Any]]],
+    idx: int,
+) -> str:
+    """Resolve class label as a display-safe string."""
+    label = class_label_from_map(class_map, idx, default=idx)
+    return str(idx if label is None else label)
 
 
 ###############################################################################
@@ -180,13 +222,8 @@ def apply_normalization(
         return _normalize_zscore(x, scope=scope, eps=eps, clip_percentiles=clip_percentiles)
 
     if mode == "auto":
-        try:
-            x_min = float(x.min())
-            x_max = float(x.max())
-        except Exception:
-            return _normalize_minmax(
-                x, out_range=out_range, scope=scope, eps=eps, clip_percentiles=clip_percentiles
-            )
+        x_min = float(torch.amin(x).item())
+        x_max = float(torch.amax(x).item())
 
         out_min, out_max = out_range
         # Fast path: already approximately in range.
@@ -265,7 +302,10 @@ def load_and_prepare_data(
         return x
 
     # Assemble tensors while preserving channels.
-    imgs = [_ensure_channel_first(torch.as_tensor(e["image"], dtype=torch.float32), name="image") for e in data_split]
+    imgs = [
+        _ensure_channel_first(torch.as_tensor(e["image"], dtype=torch.float32), name="image")
+        for e in data_split
+    ]
     Images = torch.stack(imgs, dim=0)  # [N, C, ...]
     if isinstance(image_norm, dict):
         image_mode = str(image_norm.get("mode", "minmax_0_1"))
@@ -294,8 +334,13 @@ def load_and_prepare_data(
     has_mask = any("mask" in e for e in data_split)
     if has_mask:
         if not all("mask" in e for e in data_split):
-            raise ValueError(f"Split '{split}' has inconsistent samples: some are missing the 'mask' key.")
-        mks = [_ensure_channel_first(torch.as_tensor(e["mask"], dtype=torch.float32), name="mask") for e in data_split]
+            raise ValueError(
+                f"Split '{split}' has inconsistent samples: some are missing the 'mask' key."
+            )
+        mks = [
+            _ensure_channel_first(torch.as_tensor(e["mask"], dtype=torch.float32), name="mask")
+            for e in data_split
+        ]
         Masks = torch.stack(mks, dim=0)  # [N, C, ...]
 
         if isinstance(mask_norm, dict):

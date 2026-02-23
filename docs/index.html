@@ -151,7 +151,7 @@
         <a href="#quickstart">Quickstart</a>
         <a href="#resources">Resources</a>
         <a href="#citation">Cite</a>
-        <button id="theme" class="btn btn-ghost small" type="button" title="Toggle theme">🌓</button>
+        <button id="theme" class="btn btn-ghost small" type="button" title="Toggle theme">Theme</button>
       </nav>
     </div>
   </header>
@@ -166,15 +166,15 @@
         </p>
 
         <p class="small mute" style="margin:.6rem 0 0">
-          <strong>Authors:</strong> Milad Yazdani, Yasamin Medghalchi, Pooria Ashrafian, Ilker Hacihaliloglu, Dena Shahriari &nbsp; · &nbsp;
+          <strong>Authors:</strong> Milad Yazdani, Yasamin Medghalchi, Pooria Ashrafian, Ilker Hacihaliloglu, Dena Shahriari &nbsp; &middot; &nbsp;
           <strong>Affiliation:</strong> University of British Columbia, Vancouver, Canada
         </p>
 
         <div class="cta">
-          <a class="btn btn-primary" href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">📄 Paper (arXiv)</a>
-          <a class="btn" href="https://arxiv.org/pdf/2503.00266.pdf" target="_blank" rel="noopener">⬇️ PDF</a>
-          <a class="btn" href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">🔗 DOI</a>
-          <a class="btn" href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">💻 Code (GitHub)</a>
+          <a class="btn btn-primary" href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">Paper (arXiv)</a>
+          <a class="btn" href="https://arxiv.org/pdf/2503.00266.pdf" target="_blank" rel="noopener">PDF</a>
+          <a class="btn" href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">DOI</a>
+          <a class="btn" href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">Code (GitHub)</a>
         </div>
 
         <div class="callouts">
@@ -294,6 +294,11 @@
             <code>image</code>, <code>mask</code>, <code>class</code>, and optional <code>metadata</code>.
             Adjust paths and hyper-parameters in <code>configs/*.yaml</code>.
           </p>
+          <p class="small">
+            <strong>Reproducibility:</strong> set <code>train_args.seed</code> and
+            <code>train_args.deterministic</code> in config; for inference, optionally pass
+            <code>--seed</code>.
+          </p>
           <p class="small"><a href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">See README for full details</a>.</p>
         </div>
       </div>
@@ -310,7 +315,7 @@
         <div class="card">
           <h3 style="margin-top:6px">Paper</h3>
           <p class="small">arXiv preprint with method and experiments across echo and MRI.</p>
-          <p class="small"><a href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">arXiv:2503.00266</a> · <a href="https://arxiv.org/pdf/2503.00266.pdf" target="_blank" rel="noopener">PDF</a> · <a href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">DOI</a></p>
+          <p class="small"><a href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">arXiv:2503.00266</a> &middot; <a href="https://arxiv.org/pdf/2503.00266.pdf" target="_blank" rel="noopener">PDF</a> &middot; <a href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">DOI</a></p>
         </div>
         <div class="card">
           <h3 style="margin-top:6px">License</h3>
@@ -331,7 +336,7 @@
   year    = {2025}
 }</pre>
           <p>
-            <button class="btn" type="button" onclick="copyBib()">📋 Copy BibTeX</button>
+            <button class="btn" type="button" onclick="copyBib()">Copy BibTeX</button>
             <a class="btn" href="https://arxiv.org/abs/2503.00266" target="_blank" rel="noopener">arXiv</a>
             <a class="btn" href="https://doi.org/10.48550/arXiv.2503.00266" target="_blank" rel="noopener">DOI</a>
           </p>
@@ -346,7 +351,7 @@
 
     <section class="foot small">
       <p>
-        © 2025 The authors. Code: <a href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">MOTFM</a> (MIT).
+        &copy; 2025 The authors. Code: <a href="https://github.com/milad1378yz/MOTFM" target="_blank" rel="noopener">MOTFM</a> (MIT).
         Datasets referenced: <a href="https://www.creatis.insa-lyon.fr/Challenge/camus/" target="_blank" rel="noopener">CAMUS</a>, <a href="https://medicaldecathlon.com/" target="_blank" rel="noopener">Medical Segmentation Decathlon</a>.
       </p>
       <p class="mute">
@@ -375,7 +380,7 @@
       navigator.clipboard.writeText(txt).then(()=>{
         const old = document.activeElement?.textContent;
         if(document.activeElement) {
-          document.activeElement.textContent = "✅ Copied!";
+          document.activeElement.textContent = "Copied!";
           setTimeout(()=>document.activeElement.textContent = old, 1400);
         }
       });

@@ -37,6 +37,7 @@ train_args:
   devices: [0]
   precision: "16-mixed"
   num_workers: 4
+  deterministic: false
   gradient_accumulation_steps: 1
   num_val_samples: 8
   checkpoint_dir: "mask_class_conditioning_checkpoints"

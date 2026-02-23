@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 
 import torch
 
-from utils.general_utils import load_config
+from utils.general_utils import class_label_from_map, load_config, set_global_seed
 from utils.motfm_logging import get_logger
 from utils.utils_fm import sample_batch
 
@@ -120,9 +120,7 @@ def validate_checkpoint_config(
     """
     ckpt_config = _extract_checkpoint_config(checkpoint)
     if ckpt_config is None:
-        logger.warning(
-            "Checkpoint has no recoverable saved config; skipping compatibility checks."
-        )
+        logger.warning("Checkpoint has no recoverable saved config; skipping compatibility checks.")
         return
 
     critical_fields = [
@@ -226,8 +224,8 @@ def main():
     parser.add_argument(
         "--num_samples",
         type=int,
-        default=10,
-        help="Number of samples to save. If None, all samples are saved.",
+        default=None,
+        help="Number of samples to save. If omitted, all validation samples are saved.",
     )
     parser.add_argument(
         "--model_path",
@@ -273,6 +271,15 @@ def main():
         action="store_true",
         help="Allow loading a checkpoint whose saved config mismatches the current config.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help=(
+            "Random seed for reproducible sampling. "
+            "If omitted, uses `train_args.seed` from config when available."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -282,6 +289,12 @@ def main():
     config = load_config(config_path)
     checkpoint_path, checkpoint_dir = resolve_checkpoint_path(args.model_path, config, config_path)
     logger.info(f"Using checkpoint: {checkpoint_path}")
+
+    seed = args.seed
+    if seed is not None:
+        seed = int(seed)
+        set_global_seed(seed)
+        logger.info(f"Using seed={seed} for reproducible inference.")
 
     # Device setup
     device = (
@@ -313,7 +326,8 @@ def main():
             f"samples_{config_name}_{ckpt_name}_steps{solver_config['time_points']}.pkl",
         )
     output_path = os.path.abspath(os.path.expanduser(output_path))
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    output_dir = os.path.dirname(output_path) or "."
+    os.makedirs(output_dir, exist_ok=True)
 
     if os.path.exists(output_path):
         if args.overwrite:
@@ -416,11 +430,10 @@ def main():
                 raw_global_min = np.minimum(raw_global_min, image_np.min())
                 raw_global_max = np.maximum(raw_global_max, image_np.max())
 
-                class_value = (
-                    idx_to_class[int(classes_np[i].argmax())]
-                    if (idx_to_class is not None and classes_np is not None)
-                    else None
-                )
+                class_value = None
+                if idx_to_class is not None and classes_np is not None:
+                    class_idx = int(classes_np[i].argmax())
+                    class_value = class_label_from_map(idx_to_class, class_idx)
 
                 sample_dict = {
                     "image": image_np,
