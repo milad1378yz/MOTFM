@@ -27,7 +27,6 @@ class MergedModel(nn.Module):
 
         # If controlnet is None, we won't do anything special in forward.
         self.has_controlnet = controlnet is not None
-        self.has_conditioning = unet.with_conditioning
 
     def forward(
         self,

@@ -47,13 +47,6 @@ def normalize_zero_to_one(tensor: torch.Tensor):
     return (tensor - t_min) / denom
 
 
-def normalize_minusone_to_one(tensor: torch.Tensor):
-    """
-    Normalizes a tensor to the range [-1, 1].
-    """
-    return 2 * normalize_zero_to_one(tensor) - 1
-
-
 def _normalize_minmax(
     tensor: torch.Tensor,
     out_range: Tuple[float, float] = (0.0, 1.0),
@@ -217,7 +210,6 @@ def load_and_prepare_data(
     pickle_path: str,
     split: str = "train",
     convert_classes_to_onehot: bool = False,
-    is_ddpm: bool = False,
     *,
     image_norm: Union[str, Dict] = "minmax_0_1",
     mask_norm: Union[str, Dict] = "minmax_0_1",
@@ -233,13 +225,9 @@ def load_and_prepare_data(
     Loads data from a pickle file containing a dict with:
       data_dict[split] -> list of dicts with keys ["image", "mask", "class", "name"]
 
-    If 'use_masks_as_condition' is True, returns (X, Y=mask).
-    Otherwise, returns (X, None).
-
-    Returns:
-      X: [N, C, H, W] float tensor
-      Y or None: [N, C, H, W], if use_masks_as_condition is True
-      (H, W): dimensions
+    Returns a dictionary containing at least:
+      - "images": [N, C, ...] float tensor
+      - optionally "masks", "classes", and "class_map" when available.
     """
     # Load the pickle file
     with open(pickle_path, "rb") as f:
@@ -385,9 +373,6 @@ def load_and_prepare_data(
                 result["classes"] = torch.as_tensor(class_list)
             except Exception:
                 result["classes"] = class_list
-
-    if is_ddpm:
-        result["images"] = normalize_minusone_to_one(result["images"])
 
     return result
 

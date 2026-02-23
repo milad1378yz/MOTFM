@@ -108,16 +108,6 @@ python inferer.py \
     --output_norm clip_0_1
 ```
 
-For the CAMUS 10-epoch example in this repo:
-```bash
-python inferer.py \
-    --config_path configs/mask_class_conditioning_camus_10ep.yaml \
-    --model_path mask_class_conditioning_checkpoints/mask_class_conditioning_camus_10ep \
-    --num_samples 16 \
-    --num_inference_steps 10 \
-    --output_norm clip_0_1
-```
-
 ### Arguments
 
 - **`--config_path`** (`str`, default: `configs/default.yaml`): Config file used for model/data setup.

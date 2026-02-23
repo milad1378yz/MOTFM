@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import warnings
 import pickle
 import time
@@ -13,9 +12,6 @@ import numpy as np
 warnings.filterwarnings("ignore")
 
 import torch
-
-# Ensure the script can find the utils modules
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from utils.general_utils import load_config
 from utils.utils_fm import sample_batch
@@ -392,11 +388,6 @@ def main():
             end_time = time.time()  # End time for the batch
             batch_time = end_time - start_time
             total_time += batch_time  # Accumulate total time
-
-            if mask_conditioning and "masks" not in batch:
-                raise KeyError(
-                    "mask_conditioning is enabled but the dataloader batch has no 'masks' key."
-                )
 
             masks_t = batch.get("masks")
             classes_t = batch.get("classes")
