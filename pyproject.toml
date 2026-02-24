@@ -1,2 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "motfm"
+version = "0.1.0"
+description = "Medical Optimal Transport Flow Matching for medical image synthesis."
+readme = "README.md"
+requires-python = ">=3.9,<3.13"
+license = { file = "LICENSE" }
+dependencies = [
+    "flow_matching==1.0.10",
+    "matplotlib",
+    "monai_generative==0.2.3",
+    "numpy==1.26.4",
+    "PyYAML==6.0.2",
+    "pytorch-lightning==2.5.6",
+    "tensorboard",
+    "torch==2.5.1",
+    "tqdm==4.67.1",
+]
+
+[project.scripts]
+motfm-train = "trainer:main"
+motfm-infer = "inferer:main"
+
+[project.urls]
+Homepage = "https://github.com/milad1378yz/MOTFM"
+Repository = "https://github.com/milad1378yz/MOTFM"
+Paper = "https://arxiv.org/abs/2503.00266"
+
+[tool.setuptools]
+py-modules = ["trainer", "inferer"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["utils*"]
+namespaces = true
+
 [tool.black]
 line-length = 100

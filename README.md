@@ -22,10 +22,19 @@
 
 ## Requirements
 
-To install the required packages, run:
+- Python: **3.9 - 3.12**
+- Core pinned stack (from `pyproject.toml`):
+  - `torch==2.5.1`
+  - `flow_matching==1.0.10`
+  - `pytorch-lightning==2.5.6`
+  - `numpy==1.26.4`
+  - `monai_generative==0.2.3`
+
+To install from `pyproject.toml`, run:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
+
 
 ---
 
@@ -85,6 +94,10 @@ To train the model, run:
 ```bash
 python trainer.py --config_path configs/default.yaml
 ```
+or (after installation):
+```bash
+motfm-train --config_path configs/default.yaml
+```
 
 - `--config_path`: Path to your YAML configuration file. Defaults to `configs/default.yaml` if not provided.
 
@@ -101,6 +114,15 @@ Use `inferer.py` to generate synthetic samples from a trained checkpoint and sav
 Run with your config and checkpoint directory:
 ```bash
 python inferer.py \
+    --config_path configs/default.yaml \
+    --model_path mask_class_conditioning_checkpoints/default \
+    --num_samples 200 \
+    --num_inference_steps 5 \
+    --output_norm clip_0_1
+```
+or (after installation):
+```bash
+motfm-infer \
     --config_path configs/default.yaml \
     --model_path mask_class_conditioning_checkpoints/default \
     --num_samples 200 \

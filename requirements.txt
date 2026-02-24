@@ -1,9 +1,0 @@
-flow_matching
-matplotlib
-monai_generative==0.2.3
-numpy
-PyYAML==6.0.2
-pytorch-lightning
-tensorboard
-torch==2.5.1
-tqdm==4.67.1
