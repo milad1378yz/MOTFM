@@ -172,6 +172,27 @@ Flash attention requires CUDA and will raise an error otherwise.
 
 ---
 
+## 3D Evaluation
+
+A dedicated script is available in `evaluation_3d/` to compute 3D metrics between two datasets:
+
+- **MMD**
+- **MS-SSIM**
+- **3D-FID** (R3D-18 features + MONAI FIDMetric)
+
+```bash
+python evaluation_3d/evaluate_3d.py \
+    --generated_path /path/to/generated.pkl \
+    --reference_path /path/to/reference.pkl \
+    --generated_split train \
+    --reference_split valid \
+    --num_samples 200
+```
+
+Use `--skip_fid` to skip 3D-FID when torchvision video weights are unavailable.
+
+---
+
 
 ## News
 - **`2025-04-09`** | Code released.
