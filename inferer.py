@@ -3,7 +3,7 @@ import os
 import warnings
 import pickle
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from tqdm import tqdm
 import numpy as np
@@ -42,22 +42,11 @@ def _select_checkpoint_file(ckpt_dir: str) -> Optional[str]:
     return candidates[0]
 
 
-def _dedupe_preserve_order(paths: List[str]) -> List[str]:
-    # Keep search precedence deterministic while removing repeated candidates.
-    seen = set()
-    out = []
-    for p in paths:
-        if p not in seen:
-            seen.add(p)
-            out.append(p)
-    return out
-
-
 def resolve_checkpoint_path(
     model_path: Optional[str], config: Dict, config_path: str
 ) -> Tuple[str, str]:
     """
-    Resolve a user-provided checkpoint path or infer it from config/run name.
+    Resolve checkpoint from a checkpoint directory.
 
     Returns:
         checkpoint_path (str): absolute path to the checkpoint file.
@@ -66,30 +55,17 @@ def resolve_checkpoint_path(
     run_name = os.path.splitext(os.path.basename(config_path))[0]
     root_dir = config["train_args"]["checkpoint_dir"]
 
-    candidates: List[str] = []
-    if model_path:
-        base = os.path.abspath(os.path.expanduser(model_path))
-        # Accept either direct file path or common subdirs under a checkpoint root.
-        candidates.extend(
-            [
-                base,
-                os.path.join(base, run_name),
-                os.path.join(base, "latest"),
-            ]
+    checkpoint_dir = (
+        os.path.abspath(os.path.expanduser(model_path))
+        if model_path
+        else os.path.abspath(os.path.join(root_dir, run_name))
+    )
+    checkpoint_path = _select_checkpoint_file(checkpoint_dir)
+    if checkpoint_path is None:
+        raise FileNotFoundError(
+            f"Unable to locate a checkpoint in directory: {checkpoint_dir}"
         )
-    else:
-        candidates.append(os.path.abspath(os.path.join(root_dir, run_name)))
-    candidates = _dedupe_preserve_order(candidates)
-
-    for candidate in candidates:
-        if os.path.isfile(candidate) and candidate.endswith(".ckpt"):
-            return candidate, os.path.dirname(candidate)
-        if os.path.isdir(candidate):
-            resolved = _select_checkpoint_file(candidate)
-            if resolved:
-                return resolved, candidate
-
-    raise FileNotFoundError(f"Unable to locate a checkpoint. Checked paths: {candidates}")
+    return checkpoint_path, checkpoint_dir
 
 
 def _get_nested(cfg: Dict[str, Any], keys: Tuple[str, ...]) -> Tuple[Any, bool]:
@@ -236,7 +212,7 @@ def main():
         type=str,
         default=None,
         help=(
-            "Path to a checkpoint file or directory. If omitted, "
+            "Path to a checkpoint directory. If omitted, "
             "`train_args.checkpoint_dir/<config_basename>` is used."
         ),
     )
