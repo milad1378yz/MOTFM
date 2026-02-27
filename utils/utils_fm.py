@@ -58,6 +58,7 @@ class MergedModel(nn.Module):
             t = t.expand(x.shape[0])
 
         if cond is not None and cond.dim() == 2:
+            # DiffusionModelUNet expects context as [B, seq_len, dim].
             cond = cond.unsqueeze(1)
 
         # t's shape should be [B]
@@ -71,6 +72,7 @@ class MergedModel(nn.Module):
             down_block_res_samples, mid_block_res_sample = self.controlnet(
                 x=x, timesteps=t, controlnet_cond=masks, context=cond
             )
+            # Inject ControlNet residuals into the matching UNet blocks.
             output = self.unet(
                 x=x,
                 timesteps=t,
@@ -119,6 +121,7 @@ def build_model(model_config: dict, device: torch.device = None) -> MergedModel:
             cond_embed_channels = (16,)
         # Pass the same config kwargs to ControlNet plus the controlnet-specific key.
         controlnet = ControlNet(**mc, conditioning_embedding_num_channels=cond_embed_channels)
+        # Start ControlNet close to the UNet initialization for stabler joint optimization.
         controlnet.load_state_dict(unet.state_dict(), strict=False)
 
     model = MergedModel(unet=unet, controlnet=controlnet, max_timestep=max_timestep)
@@ -158,6 +161,7 @@ def sample_with_solver(
     solver = ODESolver(velocity_model=model)
 
     time_points = solver_config.get("time_points", 10)
+    # Flow matching integrates the velocity field from t=0 to t=1.
     T = torch.linspace(0, 1, time_points, device=x_init.device)
 
     method = solver_config.get("method", "midpoint")
@@ -306,6 +310,7 @@ def validate_and_save_samples(
                     )
             count += 1
         if not step_plot_done:
+            # Save only one trajectory grid per validation epoch to limit plotting overhead.
             clz = batch["classes"] if class_map and "classes" in batch else None
             plot_solver_steps(sol, imgs, masks, clz, class_map, outdir)
             step_plot_done = True

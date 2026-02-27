@@ -43,6 +43,7 @@ def _select_checkpoint_file(ckpt_dir: str) -> Optional[str]:
 
 
 def _dedupe_preserve_order(paths: List[str]) -> List[str]:
+    # Keep search precedence deterministic while removing repeated candidates.
     seen = set()
     out = []
     for p in paths:
@@ -68,6 +69,7 @@ def resolve_checkpoint_path(
     candidates: List[str] = []
     if model_path:
         base = os.path.abspath(os.path.expanduser(model_path))
+        # Accept either direct file path or common subdirs under a checkpoint root.
         candidates.extend(
             [
                 base,
@@ -141,6 +143,7 @@ def validate_checkpoint_config(
     for path in critical_fields:
         ckpt_val, has_ckpt = _get_nested(ckpt_config, path)
         cfg_val, has_cfg = _get_nested(config, path)
+        # Only compare fields that exist in both configs to avoid false mismatches.
         if has_ckpt and has_cfg and ckpt_val != cfg_val:
             mismatches.append((path, ckpt_val, cfg_val))
 
@@ -205,6 +208,7 @@ def build_solver_config(config: Dict, num_inference_steps: Optional[int]) -> Dic
     solver_config = dict(config.get("solver_args", {}))
     solver_config.setdefault("method", "midpoint")
     if num_inference_steps:
+        # Keep time_points and step_size consistent when steps are overridden from CLI.
         solver_config["time_points"] = num_inference_steps
         solver_config["step_size"] = 1.0 / num_inference_steps
     solver_config.setdefault("time_points", 10)
@@ -392,7 +396,7 @@ def main():
             try:
                 batch = next(val_iterator)
             except StopIteration:
-                # Reinitialize the iterator if the dataset is exhausted
+                # Allow num_samples > dataset_size by cycling through validation batches.
                 val_iterator = iter(val_loader)
                 batch = next(val_iterator)
                 iterator_resets += 1
@@ -482,6 +486,7 @@ def main():
         for sample in generated_samples:
             sample["image"] = _normalize_sample_image(sample["image"], args.output_norm)
 
+    # Mirror generated samples under configured split keys for downstream loader compatibility.
     generated_dataset = {split_train_key: generated_samples}
     if split_val_key != split_train_key:
         generated_dataset[split_val_key] = generated_samples
