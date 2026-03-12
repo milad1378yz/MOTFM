@@ -12,7 +12,7 @@ model_args:
   num_res_blocks: [2, 2, 2, 2]
   
   # Number of channels at each UNet level (must match the length of num_res_blocks).
-  num_channels: [32, 64, 128, 256]
+  num_channels: [32, 64, 160, 480]
   
   # Defines which levels of the UNet incorporate attention layers.
   attention_levels: [False, False, False, True]
@@ -24,7 +24,7 @@ model_args:
   resblock_updown: True
   
   # Number of channels used in each attention head, typically matches num_channels.
-  num_head_channels: [32, 64, 128, 256]
+  num_head_channels: [32, 64, 160, 480]
   
   # Number of layers if a transformer block is employed (cross-attention).
   transformer_num_layers: 6
@@ -57,7 +57,7 @@ train_args:
   num_epochs: 100
   
   # Batch size for training (change based on your GPU memory).
-  batch_size: 2
+  batch_size: 1
 
   # Keep effective batch size reasonable for 3D volumes without forcing a large per-step batch.
   gradient_accumulation_steps: 4
