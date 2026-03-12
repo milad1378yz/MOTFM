@@ -54,10 +54,10 @@ data_args:
 
 train_args:
   # Number of epochs for model training.
-  num_epochs: 300
+  num_epochs: 100
   
   # Batch size for training (change based on your GPU memory).
-  batch_size: 1
+  batch_size: 2
 
   # Keep effective batch size reasonable for 3D volumes without forcing a large per-step batch.
   gradient_accumulation_steps: 4

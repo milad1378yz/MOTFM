@@ -10,7 +10,7 @@
 **MOTFM** (Medical Optimal Transport Flow Matching) accelerates medical image generation while preserving, and often improving, quality, across **2D/3D** and **class/mask-conditional** setups.
 
 ### [Paper](https://www.arxiv.org/abs/2503.00266)
-### [Model Checkpoint](https://drive.google.com/file/d/1ZS2ApElLkWSKLd4xX2zf7bDHMpaMIjSF/view?usp=sharing)
+### [Checkpoints](https://drive.google.com/drive/folders/1iwqLcqXdoJ8w60FVDbi4KXBfvK1Oje6h?usp=sharing)
 
 <br>
 
