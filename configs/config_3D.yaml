@@ -32,32 +32,35 @@ model_args:
   # Toggles the use of more efficient “flash” attention implementations, if supported.
   use_flash_attention: true
   
-  # Whether to enable cross-attention/conditioning in the UNet.
-  with_conditioning: True
-
-  mask_conditioning: True
-  
-  # Dimensionality for cross-attention embeddings (e.g., number of classes).
-  cross_attention_dim: 4
-  
-  # If using additional conditioning embeddings (e.g., from masks), specify how many channels.
-  conditioning_embedding_num_channels: [16]
+  # Unconditional 3D MRI generation.
+  with_conditioning: false
+  mask_conditioning: false
 
 
 data_args:
-  # Path to your dataset in .pkl format (must match the data structure specified in the README).
-  pickle_path: "./data/dummy_3d/dataset.pkl"
+  # 3D Brain MRI dataset in the expected MOTFM pickle format.
+  pickle_path: "./data/mri.pkl"
 
   # Dictionary keys in the loaded pickle file to use for training and validation splits.
   split_train: "train"
   split_val: "valid"
 
+  # MRI intensities vary across volumes; preserve [-1, 1] inputs when already normalized,
+  # otherwise normalize each volume independently into that range.
+  image_norm:
+    mode: "auto"
+    scope: "sample"
+    range: [-1.0, 1.0]
+
 train_args:
   # Number of epochs for model training.
-  num_epochs: 200
+  num_epochs: 300
   
   # Batch size for training (change based on your GPU memory).
   batch_size: 1
+
+  # Keep effective batch size reasonable for 3D volumes without forcing a large per-step batch.
+  gradient_accumulation_steps: 4
   
   # Learning rate for the optimizer.
   lr: 0.0001
@@ -66,16 +69,19 @@ train_args:
   print_every: 1
   
   # Run a validation pass every `val_freq` epochs.
-  val_freq: 1
-  
-  # Which device to run on: "cuda" for GPU, "cpu" for CPU.
-  device: "cuda"
+  val_freq: 5
   
   # Number of samples to visualize/validate during validation passes.
-  num_val_samples: 10
+  num_val_samples: 4
+
+  seed: 42
+  accelerator: "auto"
+  devices: "auto"
+  num_workers: 4
+  log_every_n_steps: 10
   
   # Directory in which checkpoints and logs will be saved.
-  checkpoint_dir: mask_class_conditioning_checkpoints_3d
+  checkpoint_dir: unconditional_checkpoints_3d_mri
 
 solver_args:
   # Which numerical solver/flow method to use (e.g., "euler", "rk4", etc.).
