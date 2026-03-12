@@ -3,7 +3,7 @@ import os
 import warnings
 import pickle
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from tqdm import tqdm
 import numpy as np
@@ -42,21 +42,11 @@ def _select_checkpoint_file(ckpt_dir: str) -> Optional[str]:
     return candidates[0]
 
 
-def _dedupe_preserve_order(paths: List[str]) -> List[str]:
-    seen = set()
-    out = []
-    for p in paths:
-        if p not in seen:
-            seen.add(p)
-            out.append(p)
-    return out
-
-
 def resolve_checkpoint_path(
     model_path: Optional[str], config: Dict, config_path: str
 ) -> Tuple[str, str]:
     """
-    Resolve a user-provided checkpoint path or infer it from config/run name.
+    Resolve checkpoint from a checkpoint directory.
 
     Returns:
         checkpoint_path (str): absolute path to the checkpoint file.
@@ -65,29 +55,17 @@ def resolve_checkpoint_path(
     run_name = os.path.splitext(os.path.basename(config_path))[0]
     root_dir = config["train_args"]["checkpoint_dir"]
 
-    candidates: List[str] = []
-    if model_path:
-        base = os.path.abspath(os.path.expanduser(model_path))
-        candidates.extend(
-            [
-                base,
-                os.path.join(base, run_name),
-                os.path.join(base, "latest"),
-            ]
+    checkpoint_dir = (
+        os.path.abspath(os.path.expanduser(model_path))
+        if model_path
+        else os.path.abspath(os.path.join(root_dir, run_name))
+    )
+    checkpoint_path = _select_checkpoint_file(checkpoint_dir)
+    if checkpoint_path is None:
+        raise FileNotFoundError(
+            f"Unable to locate a checkpoint in directory: {checkpoint_dir}"
         )
-    else:
-        candidates.append(os.path.abspath(os.path.join(root_dir, run_name)))
-    candidates = _dedupe_preserve_order(candidates)
-
-    for candidate in candidates:
-        if os.path.isfile(candidate) and candidate.endswith(".ckpt"):
-            return candidate, os.path.dirname(candidate)
-        if os.path.isdir(candidate):
-            resolved = _select_checkpoint_file(candidate)
-            if resolved:
-                return resolved, candidate
-
-    raise FileNotFoundError(f"Unable to locate a checkpoint. Checked paths: {candidates}")
+    return checkpoint_path, checkpoint_dir
 
 
 def _get_nested(cfg: Dict[str, Any], keys: Tuple[str, ...]) -> Tuple[Any, bool]:
@@ -141,6 +119,7 @@ def validate_checkpoint_config(
     for path in critical_fields:
         ckpt_val, has_ckpt = _get_nested(ckpt_config, path)
         cfg_val, has_cfg = _get_nested(config, path)
+        # Only compare fields that exist in both configs to avoid false mismatches.
         if has_ckpt and has_cfg and ckpt_val != cfg_val:
             mismatches.append((path, ckpt_val, cfg_val))
 
@@ -205,6 +184,7 @@ def build_solver_config(config: Dict, num_inference_steps: Optional[int]) -> Dic
     solver_config = dict(config.get("solver_args", {}))
     solver_config.setdefault("method", "midpoint")
     if num_inference_steps:
+        # Keep time_points and step_size consistent when steps are overridden from CLI.
         solver_config["time_points"] = num_inference_steps
         solver_config["step_size"] = 1.0 / num_inference_steps
     solver_config.setdefault("time_points", 10)
@@ -232,7 +212,7 @@ def main():
         type=str,
         default=None,
         help=(
-            "Path to a checkpoint file or directory. If omitted, "
+            "Path to a checkpoint directory. If omitted, "
             "`train_args.checkpoint_dir/<config_basename>` is used."
         ),
     )
@@ -392,7 +372,7 @@ def main():
             try:
                 batch = next(val_iterator)
             except StopIteration:
-                # Reinitialize the iterator if the dataset is exhausted
+                # Allow num_samples > dataset_size by cycling through validation batches.
                 val_iterator = iter(val_loader)
                 batch = next(val_iterator)
                 iterator_resets += 1
@@ -482,6 +462,7 @@ def main():
         for sample in generated_samples:
             sample["image"] = _normalize_sample_image(sample["image"], args.output_norm)
 
+    # Mirror generated samples under configured split keys for downstream loader compatibility.
     generated_dataset = {split_train_key: generated_samples}
     if split_val_key != split_train_key:
         generated_dataset[split_val_key] = generated_samples

@@ -118,6 +118,7 @@ def _normalize_minmax(
             raise ValueError(
                 f"clip_percentiles must satisfy 0 <= lo < hi <= 100, got {clip_percentiles}."
             )
+        # Compute clipping per selected normalization scope.
         q_lo = torch.quantile(x, lo / 100.0, dim=reduce_dims, keepdim=reduce_dims is not None)
         q_hi = torch.quantile(x, hi / 100.0, dim=reduce_dims, keepdim=reduce_dims is not None)
         x = x.clamp(q_lo, q_hi)
@@ -161,6 +162,7 @@ def _normalize_zscore(
             raise ValueError(
                 f"clip_percentiles must satisfy 0 <= lo < hi <= 100, got {clip_percentiles}."
             )
+        # Apply the same scoped clipping before mean/std computation.
         q_lo = torch.quantile(x, lo / 100.0, dim=reduce_dims, keepdim=reduce_dims is not None)
         q_hi = torch.quantile(x, hi / 100.0, dim=reduce_dims, keepdim=reduce_dims is not None)
         x = x.clamp(q_lo, q_hi)
@@ -378,6 +380,7 @@ def load_and_prepare_data(
         class_list = [e["class"] for e in data_split]
         if convert_classes_to_onehot:
             if class_to_idx is None:
+                # Derive a stable mapping from the requested source split to keep class order deterministic.
                 mapping_source = class_mapping_split or split
                 mapping_split = data_dict.get(mapping_source, [])
                 if not mapping_split:
@@ -457,6 +460,7 @@ def create_dataloader(
 
     dataset = CustomDataset(data_dict)
     if pin_memory is None:
+        # Pinned host memory speeds up host->GPU transfer when CUDA is used.
         pin_memory = torch.cuda.is_available()
     if persistent_workers is None:
         persistent_workers = num_workers > 0
