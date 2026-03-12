@@ -311,7 +311,13 @@ def _resolve_strategy(
     Use DDP only for true multi-GPU execution.
     For single device (or CPU), keep strategy="auto" to avoid needless overhead.
     """
-    if str(accelerator).lower() not in {"gpu", "cuda"}:
+    accelerator_name = str(accelerator).lower()
+    gpu_available = torch.cuda.is_available()
+    use_gpu = accelerator_name in {"gpu", "cuda"} or (
+        accelerator_name == "auto" and gpu_available
+    )
+
+    if not use_gpu:
         return "auto"
 
     if isinstance(devices, int):
@@ -320,9 +326,12 @@ def _resolve_strategy(
         return DDPStrategy(find_unused_parameters=True) if len(devices) > 1 else "auto"
     if isinstance(devices, str):
         d = devices.strip().lower()
-        # "auto" and explicit single-device strings should stay on auto strategy.
-        if d in {"auto", "1"}:
+        if d == "auto":
+            return DDPStrategy(find_unused_parameters=True) if torch.cuda.device_count() > 1 else "auto"
+        if d == "1":
             return "auto"
+        if d.isdigit():
+            return DDPStrategy(find_unused_parameters=True) if int(d) > 1 else "auto"
         # Comma-separated ids, e.g. "0,1"
         if "," in d:
             ids = [x for x in d.split(",") if x.strip() != ""]
