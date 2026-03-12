@@ -12,7 +12,7 @@ model_args:
   num_res_blocks: [2, 2, 2, 2, 2]
   
   # Number of channels at each UNet level (must match the length of num_res_blocks).
-  num_channels: [32, 64, 128, 256, 512]
+  num_channels: [32, 64, 128, 224, 256]
   
   # Defines which levels of the UNet incorporate attention layers.
   attention_levels: [False, False, False, True, True]
@@ -24,10 +24,10 @@ model_args:
   resblock_updown: True
   
   # Number of channels used in each attention head, typically matches num_channels.
-  num_head_channels: [32, 64, 128, 256, 512]
+  num_head_channels: [32, 64, 128, 224, 256]
   
   # Number of layers if a transformer block is employed (cross-attention).
-  transformer_num_layers: 6
+  transformer_num_layers: 4
   
   # Toggles the use of more efficient "flash" attention implementations, if supported.
   use_flash_attention: true
