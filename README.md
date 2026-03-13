@@ -11,6 +11,7 @@
 
 ### [Paper](https://www.arxiv.org/abs/2503.00266)
 ### [Checkpoints](https://drive.google.com/drive/folders/1iwqLcqXdoJ8w60FVDbi4KXBfvK1Oje6h?usp=sharing)
+### [Synthetic Data](https://drive.google.com/drive/folders/1iwqLcqXdoJ8w60FVDbi4KXBfvK1Oje6h?usp=sharing)
 
 <br>
 
