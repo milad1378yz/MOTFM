@@ -42,6 +42,27 @@ def _select_checkpoint_file(ckpt_dir: str) -> Optional[str]:
     return candidates[0]
 
 
+def _resolve_checkpoint_candidate(path: str) -> Optional[Tuple[str, str]]:
+    """
+    Resolve a single checkpoint candidate path.
+
+    Returns:
+        checkpoint_path (str): absolute path to the checkpoint file.
+        checkpoint_dir (str): directory containing the checkpoint.
+    """
+    abs_path = os.path.abspath(os.path.expanduser(path))
+
+    if os.path.isfile(abs_path):
+        if abs_path.endswith(".ckpt"):
+            return abs_path, os.path.dirname(abs_path)
+        return None
+
+    checkpoint_path = _select_checkpoint_file(abs_path)
+    if checkpoint_path is None:
+        return None
+    return checkpoint_path, abs_path
+
+
 def resolve_checkpoint_path(
     model_path: Optional[str], config: Dict, config_path: str
 ) -> Tuple[str, str]:
@@ -55,17 +76,26 @@ def resolve_checkpoint_path(
     run_name = os.path.splitext(os.path.basename(config_path))[0]
     root_dir = config["train_args"]["checkpoint_dir"]
 
-    checkpoint_dir = (
-        os.path.abspath(os.path.expanduser(model_path))
+    candidate_paths = (
+        [
+            model_path,
+            os.path.join(model_path, run_name),
+            os.path.join(model_path, "latest"),
+        ]
         if model_path
-        else os.path.abspath(os.path.join(root_dir, run_name))
+        else [os.path.join(root_dir, run_name)]
     )
-    checkpoint_path = _select_checkpoint_file(checkpoint_dir)
-    if checkpoint_path is None:
-        raise FileNotFoundError(
-            f"Unable to locate a checkpoint in directory: {checkpoint_dir}"
-        )
-    return checkpoint_path, checkpoint_dir
+
+    for candidate in candidate_paths:
+        resolved = _resolve_checkpoint_candidate(candidate)
+        if resolved is not None:
+            return resolved
+
+    expanded_candidates = [os.path.abspath(os.path.expanduser(path)) for path in candidate_paths]
+    raise FileNotFoundError(
+        "Unable to locate a checkpoint. Checked:\n  - "
+        + "\n  - ".join(expanded_candidates)
+    )
 
 
 def _get_nested(cfg: Dict[str, Any], keys: Tuple[str, ...]) -> Tuple[Any, bool]:
@@ -219,8 +249,11 @@ def main():
     parser.add_argument(
         "--num_inference_steps",
         type=int,
-        default=5,
-        help="Number of inference steps during sampling.",
+        default=None,
+        help=(
+            "Number of inference steps during sampling. "
+            "If omitted, uses `solver_args.time_points` from the config."
+        ),
     )
     parser.add_argument(
         "--output_path",
@@ -239,11 +272,11 @@ def main():
     parser.add_argument(
         "--output_norm",
         type=str,
-        default="clip_0_1",
+        default="per_sample_minmax",
         choices=["clip_0_1", "per_sample_minmax", "global_minmax", "none"],
         help=(
             "Normalization applied to generated images before saving. "
-            "`clip_0_1` avoids global contrast collapse."
+            "`per_sample_minmax` matches training-time validation visualizations."
         ),
     )
     parser.add_argument(
@@ -277,8 +310,9 @@ def main():
         logger.info(f"Using seed={seed} for reproducible inference.")
 
     # Device setup
+    train_args = config.get("train_args", {})
     device = (
-        torch.device(config["train_args"]["device"])
+        torch.device(str(train_args.get("device", "cuda")))
         if torch.cuda.is_available()
         else torch.device("cpu")
     )
