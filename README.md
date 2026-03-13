@@ -116,18 +116,14 @@ Run with your config and checkpoint directory:
 python inferer.py \
     --config_path configs/default.yaml \
     --model_path mask_class_conditioning_checkpoints/default \
-    --num_samples 200 \
-    --num_inference_steps 5 \
-    --output_norm clip_0_1
+    --num_samples 200
 ```
 or (after installation):
 ```bash
 motfm-infer \
     --config_path configs/default.yaml \
     --model_path mask_class_conditioning_checkpoints/default \
-    --num_samples 200 \
-    --num_inference_steps 5 \
-    --output_norm clip_0_1
+    --num_samples 200
 ```
 
 ### Arguments
@@ -135,10 +131,10 @@ motfm-infer \
 - **`--config_path`** (`str`, default: `configs/default.yaml`): Config file used for model/data setup.
 - **`--model_path`** (`str`, optional): Checkpoint `.ckpt` file or directory.
 - **`--num_samples`** (`int`, optional): Number of samples to save. If omitted, saves all validation samples.
-- **`--num_inference_steps`** (`int`, default: `5`): Number of solver time points used during sampling.
+- **`--num_inference_steps`** (`int`, optional): Number of solver time points used during sampling. If omitted, uses `solver_args.time_points` from the config.
 - **`--output_path`** (`str`, optional): Explicit output `.pkl` path.
 - **`--overwrite`** (`flag`): Overwrite an existing file at `--output_path`.
-- **`--output_norm`** (`str`, default: `clip_0_1`): One of `clip_0_1`, `per_sample_minmax`, `global_minmax`, `none`.
+- **`--output_norm`** (`str`, default: `per_sample_minmax`): One of `clip_0_1`, `per_sample_minmax`, `global_minmax`, `none`.
 - **`--allow_config_mismatch`** (`flag`): Allow loading a checkpoint whose saved critical model fields differ from current config.
 - **`--seed`** (`int`, optional): Override RNG seed for reproducible inference. Defaults to `train_args.seed` if provided.
 
