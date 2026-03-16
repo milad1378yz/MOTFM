@@ -214,4 +214,15 @@ If you find this code or our work useful in your research, please cite:
 
 ---
 
+## Checkpoint Data Dimensions
+
+Released checkpoints:
+
+| Checkpoint family | Expected data |
+| --- | --- |
+| `mask_class_conditioning_checkpoints` | 2D CAMUS: `image: [1, 384, 384]`, `mask: [1, 384, 384]`, `class` |
+| `unconditional_checkpoints_3d_mri` | `image: [1, 96, 96, 96]` |
+
+---
+
 **Enjoy working with MOTFM!** Feel free to open an issue or pull request if you have any questions or suggestions.
